@@ -1,6 +1,5 @@
 package com.chat.cliente.view;
 
-
 import javax.swing.*;
 
 import com.chat.cliente.controller.LoginController;
@@ -21,7 +20,7 @@ public class DashboardView extends JFrame {
     private final CardLayout cardLayout;
     private final JPanel cardPanel;
     private final UserModel userModel;
-    
+
     private final TextFieldUsername fullNameField = new TextFieldUsername();
     private final JTextArea bioField = new JTextArea();
     private final TextFieldUsername profilePictureField = new TextFieldUsername();
@@ -73,7 +72,7 @@ public class DashboardView extends JFrame {
         String[] buttonLabels = {"Home", "Profile", "Settings", "Logout"};
         Runnable[] actions = {
             () -> toaster.info("Home clicked!"),
-            this::showUserProfile, // Cambiar a UserProfile
+            this::showUserProfile, // Show User Profile
             () -> toaster.info("Settings clicked!"),
             this::logout // Logout
         };
@@ -158,58 +157,66 @@ public class DashboardView extends JFrame {
         bioField.setBorder(BorderFactory.createLineBorder(UIUtils.COLOR_OUTLINE));
         userProfilePanel.add(bioField);
 
+        // Profile Picture Field
+        JLabel profilePictureLabel = new JLabel("Profile Picture:");
+        profilePictureLabel.setForeground(Color.WHITE);
+        profilePictureLabel.setBounds(300, 280, 200, 30);
+        userProfilePanel.add(profilePictureLabel);
+
+        profilePictureField.setBounds(500, 280, 300, 40);
+        userProfilePanel.add(profilePictureField);
+
+        // Created At Label
+        JLabel createdAtTitle = new JLabel("Created At:");
+        createdAtTitle.setForeground(Color.WHITE);
+        createdAtTitle.setBounds(300, 340, 200, 30);
+        userProfilePanel.add(createdAtTitle);
+
+        createdAtLabel.setBounds(500, 340, 300, 40);
+        createdAtLabel.setForeground(UIUtils.COLOR_OUTLINE);
+        userProfilePanel.add(createdAtLabel);
+
         // Save Button
-        JLabel saveButton = new StyledButton("Save", UIUtils.COLOR_INTERACTIVE, UIUtils.COLOR_INTERACTIVE_DARKER, () -> {
-            toaster.success("Profile saved!");
-            showDashboard(); // Regresar al Dashboard
-        });
-        saveButton.setBounds(500, 280, 140, 40);
+        JLabel saveButton = new StyledButton("Save", UIUtils.COLOR_INTERACTIVE, UIUtils.COLOR_INTERACTIVE_DARKER, this::saveUserProfile);
+        saveButton.setBounds(500, 400, 140, 40);
         userProfilePanel.add(saveButton);
 
         // Back Button
-        JLabel backButton = new StyledButton("Back", UIUtils.COLOR_BACKGROUND, UIUtils.COLOR_OUTLINE, this::showDashboard);
-        backButton.setBounds(660, 280, 140, 40);
+    
+     // Back Button
+        JLabel backButton = new StyledButton(
+            "Back",
+            UIUtils.COLOR_BACKGROUND,
+            UIUtils.COLOR_OUTLINE,
+            this::showDashboard // Ensure this method is visible and matches `Runnable`
+        );
+        backButton.setBounds(660, 400, 140, 40);
         userProfilePanel.add(backButton);
 
         return userProfilePanel;
     }
 
-    private void showDashboard() {
-        cardLayout.show(cardPanel, "Dashboard");
-    }
-
-
-    private void logout() {
-        try {
-            toaster.info("Logging out...");
-            boolean success = userModel.logout();
-
-            if (success) {
-                toaster.info("Logout exitoso.");
-                SwingUtilities.invokeLater(() -> {
-                    this.dispose();
-                    new LoginView(LoginController.getInstance()).setVisible(true);
-                });
-            } else {
-                toaster.error("Error al cerrar sesión. Intenta nuevamente.");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            toaster.error("Error inesperado durante el logout.");
-        }
-    }
     private void showUserProfile() {
         try {
             System.out.println("Fetching user profile...");
             UserProfileModel profile = userModel.getUserProfile();
+
             if (profile != null) {
-                cardLayout.show(cardPanel, "UserProfile");
+                // Mostrar datos del perfil
                 fullNameField.setText(profile.getFullname());
                 bioField.setText(profile.getBio());
+                profilePictureField.setText(profile.getProfilePicture());
                 createdAtLabel.setText(profile.getCreatedAt());
+                cardLayout.show(cardPanel, "UserProfile");
                 System.out.println("User profile loaded successfully.");
             } else {
-                toaster.warn("No profile data found.");
+                // Si no hay perfil, permitir al usuario crear uno
+                toaster.info("No profile found. Please create one.");
+                fullNameField.setText("");
+                bioField.setText("");
+                profilePictureField.setText("");
+                createdAtLabel.setText("");
+                cardLayout.show(cardPanel, "UserProfile");
             }
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
@@ -217,15 +224,78 @@ public class DashboardView extends JFrame {
         }
     }
 
+
+    private void saveUserProfile() {
+        try {
+            String fullName = fullNameField.getText();
+            String bio = bioField.getText();
+            String profilePicture = profilePictureField.getText();
+
+            if (fullName.isEmpty() || bio.isEmpty()) {
+                toaster.error("All fields are required.");
+                return;
+            }
+
+            UserProfileModel profile = new UserProfileModel(
+                0, // ID is irrelevant here, handled on the server
+                0, // User ID is assigned server-side
+                fullName,
+                bio,
+                profilePicture,
+                ""
+            );
+
+            boolean success = userModel.saveUserProfile(profile);// Save or update logic handled server-side
+            System.out.println(profile);
+            if (success) {
+                toaster.success("Profile saved successfully.");
+            } else {
+                toaster.error("Failed to save profile.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            toaster.error("Error saving profile.");
+        }
+    }
+
+    private void clearProfileFields() {
+        fullNameField.setText("");
+        bioField.setText("");
+        profilePictureField.setText("");
+        createdAtLabel.setText("");
+    }
+
+
+    private void logout() {
+        try {
+            toaster.info("Logging out...");
+            boolean success = userModel.logout();
+            if (success) {
+                toaster.info("Logout successful.");
+                SwingUtilities.invokeLater(() -> {
+                    this.dispose();
+                    new LoginView(LoginController.getInstance()).setVisible(true);
+                });
+            } else {
+                toaster.error("Logout failed. Try again.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            toaster.error("Unexpected error during logout.");
+        }
+    }
+    private void showDashboard() {
+        cardLayout.show(cardPanel, "Dashboard");
+    }
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             UserModel userModel = null;
-			try {
-				userModel = new UserModel("localhost", 12345);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} // Instancia ficticia para probar
+            try {
+                userModel = new UserModel("localhost", 12345);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             new DashboardView(userModel).setVisible(true);
         });
     }

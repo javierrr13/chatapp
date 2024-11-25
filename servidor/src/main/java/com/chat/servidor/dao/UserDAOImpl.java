@@ -106,4 +106,25 @@ public class UserDAOImpl implements UserDAO {
         }
         return false;
     }
+    /**
+     * Crear un nuevo perfil para un usuario.
+     * @param userId ID del usuario.
+     * @param profile Datos del nuevo perfil.
+     * @return `true` si se creó correctamente, `false` en caso contrario.
+     */
+    public boolean insertUserProfile(int userId, UserProfileModel profile) {
+        String query = "INSERT INTO user_profiles (user_id, full_name, bio, profile_picture, created_at) VALUES (?, ?, ?, ?, NOW())";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, userId);
+            stmt.setString(2, profile.getFullname());
+            stmt.setString(3, profile.getBio());
+            stmt.setString(4, profile.getProfilePicture());
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
 }

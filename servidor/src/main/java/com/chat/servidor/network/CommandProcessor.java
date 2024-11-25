@@ -22,15 +22,6 @@ public class CommandProcessor {
         this.messageService = messageService;
     }
 
-    /**
-     * Procesa el comando enviado por el cliente.
-     *
-     * @param command El comando a procesar.
-     * @param user    El usuario que envió el comando.
-     * @param input   El flujo de entrada del cliente.
-     * @param output  El flujo de salida hacia el cliente.
-     * @throws Exception Si ocurre algún error durante el procesamiento.
-     */
     public void processCommand(String command, User user, ObjectInputStream input, ObjectOutputStream output) throws Exception {
         String[] parts = command.split(" ", 2);
         String action = parts[0].toUpperCase();
@@ -53,7 +44,6 @@ public class CommandProcessor {
 
             case "SEND_MESSAGE":
                 if (parts.length > 1) {
-                    // Espera un formato: conversationID,userID,content
                     String[] messageParams = parts[1].split(",", 3);
                     if (messageParams.length == 3) {
                         int conversationID = Integer.parseInt(messageParams[0].trim());
@@ -71,43 +61,92 @@ public class CommandProcessor {
 
             case "LIST_CONVERSATIONS":
                 try {
-                    List<Conversation> conversations = conversationService.getAllConversations(); // Obtén las conversaciones
-                    output.writeObject(conversations); // Envíalas al cliente
-                    for (Conversation conversation : conversations) {
-                        System.out.println(conversation); // Llama al método toString() automáticamente
-                    }
+                    List<Conversation> conversations = conversationService.getAllConversations();
+                    output.writeObject(conversations);
                 } catch (SQLException e) {
                     e.printStackTrace();
-                    // Envía un mensaje de error al cliente, si es necesario
-                    output.writeObject(new ArrayList<>()); // Envía una lista vacía en caso de error
+                    output.writeObject(new ArrayList<>());
                 }
                 break;
-                
+
             case "GET_PROFILE":
-                try {
-                    if (user != null) {
-                        UserDAOImpl userDAO = new UserDAOImpl();
-                        UserProfileModel profile = userDAO.getUserProfile(user.getId());
-                        
-                        if (profile != null) {
-                        	
-                            output.writeObject(profile);
-                            System.out.println(profile.toString());// Enviar objeto UserProfile
-                        } else {
-                            output.writeObject("ERROR: No se encontró el perfil."); // Enviar mensaje de error
-                        }
-                    } else {
-                        output.writeObject("ERROR: Usuario no autenticado."); // Enviar mensaje de error
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    output.writeObject("ERROR: No se pudo obtener el perfil del usuario."); // Enviar mensaje de error
-                }
+                handleGetProfile(user, input, output);
                 break;
-      
+
+            case "INSERT_PROFILE":
+                handleInsertProfile(user, input, output);
+                break;
+
+            case "UPDATE_PROFILE":
+                handleUpdateProfile(user, input, output);
+                break;
+
             default:
                 output.writeObject("Comando no reconocido: " + action);
         }
     }
- 
+
+    private void handleGetProfile(User user, ObjectInputStream input, ObjectOutputStream output) {
+        try {
+            UserDAOImpl userDAO = new UserDAOImpl();
+            UserProfileModel profile = userDAO.getUserProfile(user.getId());
+
+            if (profile != null) {
+                output.writeObject(profile);
+                System.out.println("Perfil enviado: " + profile);
+            } else {
+                System.out.println("El usuario no tiene un perfil creado. Solicitando datos para creación.");
+                output.writeObject("NO_PROFILE_FOUND");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                output.writeObject("ERROR: No se pudo obtener el perfil del usuario.");
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    private void handleInsertProfile(User user, ObjectInputStream input, ObjectOutputStream output) {
+        try {
+            UserProfileModel newProfile = (UserProfileModel) input.readObject();
+            UserDAOImpl userDAO = new UserDAOImpl();
+
+            if (userDAO.insertUserProfile(user.getId(), newProfile)) {
+                output.writeObject("PROFILE_CREATED_SUCCESSFULLY");
+                System.out.println("Perfil creado exitosamente: " + newProfile);
+            } else {
+                output.writeObject("ERROR: No se pudo crear el perfil.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                output.writeObject("ERROR: Fallo en la creación del perfil.");
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    private void handleUpdateProfile(User user, ObjectInputStream input, ObjectOutputStream output) {
+        try {
+            UserProfileModel updatedProfile = (UserProfileModel) input.readObject();
+            UserDAOImpl userDAO = new UserDAOImpl();
+
+            if (userDAO.updateUserProfile(user.getId(), updatedProfile)) {
+                output.writeObject("PROFILE_UPDATED_SUCCESSFULLY");
+                System.out.println("Perfil actualizado: " + updatedProfile);
+            } else {
+                output.writeObject("ERROR: No se pudo actualizar el perfil.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                output.writeObject("ERROR: No se pudo procesar la actualización del perfil.");
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
 }

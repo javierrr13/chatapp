@@ -141,14 +141,27 @@ public class UserProfileView extends JFrame {
     }
 
     private void addButtons(JPanel panel) {
-//        JLabel saveButton = new StyledButton("Save", UIUtils.COLOR_INTERACTIVE, UIUtils.COLOR_INTERACTIVE_DARKER, this::saveUserProfile);
-//        saveButton.setBounds(250, 500, 140, 50);
-//        panel.add(saveButton);
+        JLabel saveButton = new StyledButton("Save", UIUtils.COLOR_INTERACTIVE, UIUtils.COLOR_INTERACTIVE_DARKER, () -> {
+            UserProfileModel newProfile = collectProfileData();
+            try {
+                if (userModel.insertUserProfile(newProfile)) {
+                    toaster.success("Profile saved successfully!");
+                } else {
+                    toaster.error("Failed to save profile.");
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                toaster.error("Error saving profile.");
+            }
+        });
+        saveButton.setBounds(250, 500, 140, 50);
+        panel.add(saveButton);
 
         JLabel cancelButton = new StyledButton("Cancel", UIUtils.COLOR_BACKGROUND, UIUtils.COLOR_OUTLINE, this::dispose);
         cancelButton.setBounds(450, 500, 140, 50);
         panel.add(cancelButton);
     }
+
 
     private void loadUserProfile() {
         try {
@@ -167,46 +180,13 @@ public class UserProfileView extends JFrame {
             toaster.error("Error loading profile.");
         }
     }
-//
-//    private void updateProfilePicture(String url) {
-//        // Actualiza la vista previa de la imagen
-//
-//    	try {
-//    	    // Construir la URL de forma segura utilizando URI
-//    	    URI uri = new URI(url);
-//    	    URL validUrl = uri.toURL(); // Convertir URI a URL
-//
-//    	    // Cargar la imagen desde la URL
-//    	    Image image = ImageIO.read(validUrl);
-//    	    Image scaledImage = image.getScaledInstance(profilePicturePreview.getWidth(), profilePicturePreview.getHeight(), Image.SCALE_SMOOTH);
-//    	    profilePicturePreview.setIcon(new ImageIcon(scaledImage));
-//    	} catch (Exception e) {
-//    	    // Manejo de errores: mostrar un fondo o imagen por defecto
-//    	    profilePicturePreview.setIcon(null);
-//    	    profilePicturePreview.setBackground(UIUtils.COLOR_OUTLINE);
-//    	    e.printStackTrace();
-//    	}
-//
-//
-//    }
+    public UserProfileModel collectProfileData() {
+        String fullName = fullNameField.getText().trim();
+        String bio = bioField.getText().trim();
+        String profilePicture = profilePictureField.getText().trim();
+        
+        return new UserProfileModel(0, 0, fullName, bio, profilePicture, null);
+    }
 
-//    private void saveUserProfile() {
-//        String fullName = fullNameField.getText();
-//        String bio = bioField.getText();
-//        String profilePicture = profilePictureField.getText();
-//
-//        try {
-//            boolean success = userModel.updateUserProfile(fullName, bio, profilePicture);
-//            if (success) {
-//                toaster.success("Profile updated successfully.");
-////                updateProfilePicture(profilePicture);
-//            } else {
-//                toaster.warn("Failed to update profile.");
-//            }
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            toaster.error("Error saving profile.");
-//        }
-//    }
 
 }
