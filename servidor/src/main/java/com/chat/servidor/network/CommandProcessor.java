@@ -104,8 +104,7 @@ public class CommandProcessor {
                     output.writeObject("ERROR: No se pudo obtener el perfil del usuario."); // Enviar mensaje de error
                 }
                 break;
-           
-
+      
             default:
                 output.writeObject("Comando no reconocido: " + action);
         }
