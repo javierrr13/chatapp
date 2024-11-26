@@ -14,6 +14,7 @@ import java.awt.*;
 import java.io.IOException;
 import java.util.Objects;
 
+
 public class DashboardView extends JFrame {
 
     private final Toaster toaster;
@@ -31,8 +32,11 @@ public class DashboardView extends JFrame {
         System.out.println("Abriendo dashboard");
         this.userModel = userModel;
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        this.setSize(1000, 600);
-        this.setUndecorated(true);
+
+        // Configurar pantalla completa
+        setUndecorated(true); // Sin bordes
+        setExtendedState(JFrame.MAXIMIZED_BOTH); // Maximizar ventana
+        setSize(Toolkit.getDefaultToolkit().getScreenSize()); // Tamaño de pantalla completa
 
         // Configuración del CardLayout
         cardLayout = new CardLayout();
@@ -43,14 +47,8 @@ public class DashboardView extends JFrame {
         cardPanel.add(createUserProfilePanel(), "UserProfile");
 
         this.add(cardPanel);
-        centerWindow();
 
         toaster = new Toaster(cardPanel);
-    }
-
-    private void centerWindow() {
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        setLocation(screenSize.width / 2 - getWidth() / 2, screenSize.height / 2 - getHeight() / 2);
     }
 
     private JPanel createDashboardPanel() {
@@ -60,7 +58,7 @@ public class DashboardView extends JFrame {
 
         // Sidebar
         JPanel sidebar = new JPanel();
-        sidebar.setBounds(0, 0, 250, 600);
+        sidebar.setBounds(0, 0, 250, Toolkit.getDefaultToolkit().getScreenSize().height);
         sidebar.setBackground(UIUtils.COLOR_INTERACTIVE_DARKER);
         sidebar.setLayout(null);
 
@@ -92,11 +90,11 @@ public class DashboardView extends JFrame {
 
         // Content area
         JPanel contentArea = new JPanel();
-        contentArea.setBounds(250, 0, 750, 600);
+        contentArea.setBounds(250, 0, getWidth() - 250, getHeight());
         contentArea.setBackground(UIUtils.COLOR_BACKGROUND);
         contentArea.setLayout(new BorderLayout());
 
-        JLabel title = new JLabel("Dashboard Content", SwingConstants.CENTER);
+        JLabel title = new JLabel("StudentValue", SwingConstants.CENTER);
         title.setFont(UIUtils.FONT_GENERAL_UI.deriveFont(24f));
         title.setForeground(UIUtils.COLOR_OUTLINE);
         contentArea.add(title, BorderLayout.NORTH);
@@ -106,16 +104,6 @@ public class DashboardView extends JFrame {
         contentPanel.setBackground(UIUtils.COLOR_BACKGROUND);
         contentPanel.setLayout(new GridLayout(5, 2, 10, 10));
 
-        for (int i = 1; i <= 10; i++) {
-            JLabel card = new JLabel("Card " + i, SwingConstants.CENTER);
-            card.setOpaque(true);
-            card.setBackground(UIUtils.COLOR_INTERACTIVE);
-            card.setForeground(Color.WHITE);
-            card.setFont(UIUtils.FONT_GENERAL_UI);
-            card.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-            contentPanel.add(card);
-        }
-
         scrollPane.setViewportView(contentPanel);
         contentArea.add(scrollPane, BorderLayout.CENTER);
 
@@ -123,7 +111,6 @@ public class DashboardView extends JFrame {
 
         return dashboardPanel;
     }
-
     private JPanel createUserProfilePanel() {
         JPanel userProfilePanel = new JPanel();
         userProfilePanel.setLayout(null);
@@ -206,7 +193,7 @@ public class DashboardView extends JFrame {
                 fullNameField.setText(profile.getFullname());
                 bioField.setText(profile.getBio());
                 profilePictureField.setText(profile.getProfilePicture());
-                createdAtLabel.setText(profile.getCreatedAt());
+                createdAtLabel.setText(profile.getCreatedAt() + " \n User id " + profile.getUserId());
                 cardLayout.show(cardPanel, "UserProfile");
                 System.out.println("User profile loaded successfully.");
             } else {
@@ -245,7 +232,7 @@ public class DashboardView extends JFrame {
                 ""
             );
 
-            boolean success = userModel.saveUserProfile(profile);// Save or update logic handled server-side
+            boolean success = userModel.saveUserProfile(profile);
             System.out.println(profile);
             if (success) {
                 toaster.success("Profile saved successfully.");
@@ -258,12 +245,7 @@ public class DashboardView extends JFrame {
         }
     }
 
-    private void clearProfileFields() {
-        fullNameField.setText("");
-        bioField.setText("");
-        profilePictureField.setText("");
-        createdAtLabel.setText("");
-    }
+
 
 
     private void logout() {
@@ -287,6 +269,8 @@ public class DashboardView extends JFrame {
     private void showDashboard() {
         cardLayout.show(cardPanel, "Dashboard");
     }
+
+
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {

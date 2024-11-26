@@ -65,7 +65,7 @@ public class UserModel {
             throw new ClassCastException("Unexpected response from server: " + response.getClass().getName());
         }
     }
-
+   
     public boolean saveUserProfile(UserProfileModel profile) throws IOException, ClassNotFoundException {
         output.writeObject("SAVE_PROFILE"); // Unified command for insert or update
         output.writeObject(profile);        // Send the profile data

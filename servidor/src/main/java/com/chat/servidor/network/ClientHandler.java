@@ -96,21 +96,22 @@ public class ClientHandler implements Runnable {
             UserDAOImpl userDAO = new UserDAOImpl();
 
             // Guardar o actualizar el perfil
-            if (userDAO.insertUserProfile(loggedInUser.getId(), profile)) {
+            if (userDAO.insertOrUpdateUserProfile(loggedInUser.getId(), profile)) {
                 sendMessage("PROFILE_SAVED_SUCCESSFULLY");
-                System.out.println("Perfil guardado: " + profile);
+                System.out.println("Perfil guardado o actualizado: " + profile);
             } else {
-                sendMessage("ERROR: No se pudo guardar el perfil.");
+                sendMessage("ERROR: No se pudo guardar o actualizar el perfil.");
             }
         } catch (Exception e) {
             e.printStackTrace();
             try {
-                sendMessage("ERROR: Fallo al guardar el perfil.");
+                sendMessage("ERROR: Fallo al guardar o actualizar el perfil.");
             } catch (IOException ioException) {
                 ioException.printStackTrace();
             }
         }
     }
+
 
 
     private void handleProfileCommands(String command) {
