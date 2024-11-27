@@ -1,19 +1,20 @@
 package com.chat.cliente.view;
 
-import javax.swing.*;
-
 import com.chat.cliente.controller.LoginController;
 import com.chat.cliente.model.UserModel;
 import com.chat.cliente.toaster.Toaster;
 import com.chat.cliente.utils.StyledButton;
-import com.chat.cliente.utils.TextFieldUsername;
 import com.chat.cliente.utils.UIUtils;
-import com.chat.shared.UserProfileModel;
+import com.chat.shared.Conversation; // Modelo compartido para las conversaciones
+import com.chat.shared.Message;
 
+import javax.swing.*;
 import java.awt.*;
-import java.io.IOException;
-import java.util.Objects;
+import java.time.LocalDateTime;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
 
 public class DashboardView extends JFrame {
 
@@ -22,10 +23,8 @@ public class DashboardView extends JFrame {
     private final JPanel cardPanel;
     private final UserModel userModel;
 
-    private final TextFieldUsername fullNameField = new TextFieldUsername();
-    private final JTextArea bioField = new JTextArea();
-    private final TextFieldUsername profilePictureField = new TextFieldUsername();
-    private final JLabel createdAtLabel = new JLabel();
+    private final JPanel conversationListPanel = new JPanel(new GridLayout(0, 1, 10, 10)); // Panel dinámico para las conversaciones
+    private final JPanel chatPanel = new JPanel(new BorderLayout()); // Panel para la vista de chat
 
     public DashboardView(UserModel userModel) {
         super("Dashboard");
@@ -34,9 +33,9 @@ public class DashboardView extends JFrame {
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         // Configurar pantalla completa
-        setUndecorated(true); // Sin bordes
-        setExtendedState(JFrame.MAXIMIZED_BOTH); // Maximizar ventana
-        setSize(Toolkit.getDefaultToolkit().getScreenSize()); // Tamaño de pantalla completa
+        setUndecorated(true);
+        setSize(1200, 800); // Tamaño fijo, ancho x alto
+        setLocationRelativeTo(null); 
 
         // Configuración del CardLayout
         cardLayout = new CardLayout();
@@ -44,11 +43,14 @@ public class DashboardView extends JFrame {
 
         // Agregar vistas al CardLayout
         cardPanel.add(createDashboardPanel(), "Dashboard");
-        cardPanel.add(createUserProfilePanel(), "UserProfile");
+        cardPanel.add(chatPanel, "ChatView"); // Vista de chat
 
         this.add(cardPanel);
 
         toaster = new Toaster(cardPanel);
+
+        // Cargar conversaciones al abrir el dashboard
+        loadConversations();
     }
 
     private JPanel createDashboardPanel() {
@@ -70,9 +72,9 @@ public class DashboardView extends JFrame {
         String[] buttonLabels = {"Home", "Profile", "Settings", "Logout"};
         Runnable[] actions = {
             () -> toaster.info("Home clicked!"),
-            this::showUserProfile, // Show User Profile
+            this::showUserProfile,
             () -> toaster.info("Settings clicked!"),
-            this::logout // Logout
+            this::logout
         };
 
         int yPos = 140;
@@ -89,164 +91,122 @@ public class DashboardView extends JFrame {
         dashboardPanel.add(sidebar);
 
         // Content area
-        JPanel contentArea = new JPanel();
+        JPanel contentArea = new JPanel(new BorderLayout());
         contentArea.setBounds(250, 0, getWidth() - 250, getHeight());
         contentArea.setBackground(UIUtils.COLOR_BACKGROUND);
-        contentArea.setLayout(new BorderLayout());
 
-        JLabel title = new JLabel("StudentValue", SwingConstants.CENTER);
+        JLabel title = new JLabel("Mis Conversaciones", SwingConstants.CENTER);
         title.setFont(UIUtils.FONT_GENERAL_UI.deriveFont(24f));
         title.setForeground(UIUtils.COLOR_OUTLINE);
         contentArea.add(title, BorderLayout.NORTH);
 
-        JScrollPane scrollPane = new JScrollPane();
-        JPanel contentPanel = new JPanel();
-        contentPanel.setBackground(UIUtils.COLOR_BACKGROUND);
-        contentPanel.setLayout(new GridLayout(5, 2, 10, 10));
-
-        scrollPane.setViewportView(contentPanel);
+        JScrollPane scrollPane = new JScrollPane(conversationListPanel);
+        conversationListPanel.setBackground(UIUtils.COLOR_BACKGROUND);
         contentArea.add(scrollPane, BorderLayout.CENTER);
 
         dashboardPanel.add(contentArea);
 
         return dashboardPanel;
     }
-    private JPanel createUserProfilePanel() {
-        JPanel userProfilePanel = new JPanel();
-        userProfilePanel.setLayout(null);
-        userProfilePanel.setBackground(UIUtils.COLOR_BACKGROUND);
 
-        // Header
-        JLabel header = new JLabel("User Profile", SwingConstants.CENTER);
-        header.setFont(UIUtils.FONT_GENERAL_UI.deriveFont(24f));
-        header.setForeground(UIUtils.COLOR_OUTLINE);
-        header.setBounds(0, 20, 1000, 40);
-        userProfilePanel.add(header);
+    private void loadConversations() {
+        try {
+            List<Conversation> conversations = userModel.getConversations();
+            System.out.println("Conversaciones obtenidas: " + conversations);
 
-        // Full Name Field
-        JLabel fullNameLabel = new JLabel("Full Name:");
-        fullNameLabel.setForeground(Color.WHITE);
-        fullNameLabel.setBounds(300, 100, 200, 30);
-        userProfilePanel.add(fullNameLabel);
+            conversationListPanel.removeAll(); // Limpiar panel de conversaciones anteriores
+            if (conversations.isEmpty()) {
+                System.out.println("No hay conversaciones para mostrar.");
+            }
 
-        fullNameField.setBounds(500, 100, 300, 40);
-        userProfilePanel.add(fullNameField);
+            for (Conversation conversation : conversations) {
+                System.out.println("Añadiendo botón para: " + conversation.getName());
+                JLabel conversationButton = new StyledButton(
+                    conversation.getName(),
+                    UIUtils.COLOR_INTERACTIVE,
+                    UIUtils.COLOR_INTERACTIVE_DARKER,
+                    () -> openChat(conversation)
+                );
+                conversationButton.setPreferredSize(new Dimension(200, 50));
+                conversationListPanel.add(conversationButton);
+            }
 
-        // Bio Field
-        JLabel bioLabel = new JLabel("Bio:");
-        bioLabel.setForeground(Color.WHITE);
-        bioLabel.setBounds(300, 160, 200, 30);
-        userProfilePanel.add(bioLabel);
-
-        bioField.setBounds(500, 160, 300, 100);
-        bioField.setLineWrap(true);
-        bioField.setWrapStyleWord(true);
-        bioField.setBorder(BorderFactory.createLineBorder(UIUtils.COLOR_OUTLINE));
-        userProfilePanel.add(bioField);
-
-        // Profile Picture Field
-        JLabel profilePictureLabel = new JLabel("Profile Picture:");
-        profilePictureLabel.setForeground(Color.WHITE);
-        profilePictureLabel.setBounds(300, 280, 200, 30);
-        userProfilePanel.add(profilePictureLabel);
-
-        profilePictureField.setBounds(500, 280, 300, 40);
-        userProfilePanel.add(profilePictureField);
-
-        // Created At Label
-        JLabel createdAtTitle = new JLabel("Created At:");
-        createdAtTitle.setForeground(Color.WHITE);
-        createdAtTitle.setBounds(300, 340, 200, 30);
-        userProfilePanel.add(createdAtTitle);
-
-        createdAtLabel.setBounds(500, 340, 300, 40);
-        createdAtLabel.setForeground(UIUtils.COLOR_OUTLINE);
-        userProfilePanel.add(createdAtLabel);
-
-        // Save Button
-        JLabel saveButton = new StyledButton("Save", UIUtils.COLOR_INTERACTIVE, UIUtils.COLOR_INTERACTIVE_DARKER, this::saveUserProfile);
-        saveButton.setBounds(500, 400, 140, 40);
-        userProfilePanel.add(saveButton);
-
-        // Back Button
-    
-     // Back Button
-        JLabel backButton = new StyledButton(
-            "Back",
-            UIUtils.COLOR_BACKGROUND,
-            UIUtils.COLOR_OUTLINE,
-            this::showDashboard // Ensure this method is visible and matches `Runnable`
-        );
-        backButton.setBounds(660, 400, 140, 40);
-        userProfilePanel.add(backButton);
-
-        return userProfilePanel;
+            conversationListPanel.revalidate();
+            conversationListPanel.repaint();
+        } catch (IOException | ClassNotFoundException e) {
+            toaster.error("Error cargando conversaciones.");
+            e.printStackTrace();
+        }
     }
 
-    private void showUserProfile() {
-        try {
-            System.out.println("Fetching user profile...");
-            UserProfileModel profile = userModel.getUserProfile();
 
-            if (profile != null) {
-                // Mostrar datos del perfil
-                fullNameField.setText(profile.getFullname());
-                bioField.setText(profile.getBio());
-                profilePictureField.setText(profile.getProfilePicture());
-                createdAtLabel.setText(profile.getCreatedAt() + " \n User id " + profile.getUserId());
-                cardLayout.show(cardPanel, "UserProfile");
-                System.out.println("User profile loaded successfully.");
-            } else {
-                // Si no hay perfil, permitir al usuario crear uno
-                toaster.info("No profile found. Please create one.");
-                fullNameField.setText("");
-                bioField.setText("");
-                profilePictureField.setText("");
-                createdAtLabel.setText("");
-                cardLayout.show(cardPanel, "UserProfile");
+    private void openChat(Conversation conversation) {
+        chatPanel.removeAll();
+
+        JLabel title = new JLabel("Chat: " + conversation.getName(), SwingConstants.CENTER);
+        title.setFont(UIUtils.FONT_GENERAL_UI.deriveFont(24f));
+        title.setForeground(UIUtils.COLOR_OUTLINE);
+
+        JTextArea chatArea = new JTextArea();
+        chatArea.setEditable(false);
+        chatArea.setLineWrap(true);
+        chatArea.setWrapStyleWord(true);
+
+        // Cargar mensajes de la conversación
+        try {
+            List<Message> messages = userModel.getMessages(conversation.getId());
+            for (Message message : messages) {
+                String formattedMessage = String.format(
+                    "[%s] Usuario %d: %s",
+                    message.getSentAt().toLocalTime(),
+                    message.getUserId(),
+                    message.getContent()
+                );
+                chatArea.append(formattedMessage + "\n");
             }
         } catch (IOException | ClassNotFoundException e) {
+            toaster.error("Error cargando mensajes.");
             e.printStackTrace();
-            toaster.error("Error loading user profile.");
         }
+
+        JScrollPane scrollPane = new JScrollPane(chatArea);
+
+        JTextField messageField = new JTextField();
+        messageField.addActionListener(e -> {
+            String content = messageField.getText();
+            if (!content.isEmpty()) {
+                try {
+                    try {
+                        userModel.sendMessage(conversation.getId(), content);
+                    } catch (ClassNotFoundException ex) {
+                        ex.printStackTrace();
+                    }
+                    String formattedMessage = String.format(
+                        "[%s] Yo: %s",
+                        LocalDateTime.now().toLocalTime(),
+                        content
+                    );
+                    chatArea.append(formattedMessage + "\n");
+                    messageField.setText("");
+                } catch (IOException ex) {
+                    toaster.error("Error enviando mensaje.");
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+        chatPanel.add(title, BorderLayout.NORTH);
+        chatPanel.add(scrollPane, BorderLayout.CENTER);
+        chatPanel.add(messageField, BorderLayout.SOUTH);
+
+        cardLayout.show(cardPanel, "ChatView");
     }
 
 
-    private void saveUserProfile() {
-        try {
-            String fullName = fullNameField.getText();
-            String bio = bioField.getText();
-            String profilePicture = profilePictureField.getText();
-
-            if (fullName.isEmpty() || bio.isEmpty()) {
-                toaster.error("All fields are required.");
-                return;
-            }
-
-            UserProfileModel profile = new UserProfileModel(
-                0, // ID is irrelevant here, handled on the server
-                0, // User ID is assigned server-side
-                fullName,
-                bio,
-                profilePicture,
-                ""
-            );
-
-            boolean success = userModel.saveUserProfile(profile);
-            System.out.println(profile);
-            if (success) {
-                toaster.success("Profile saved successfully.");
-            } else {
-                toaster.error("Failed to save profile.");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            toaster.error("Error saving profile.");
-        }
+    private void showUserProfile() {
+        // Implementación para mostrar el perfil de usuario
+        toaster.info("Perfil no implementado.");
     }
-
-
-
 
     private void logout() {
         try {
@@ -265,22 +225,5 @@ public class DashboardView extends JFrame {
             e.printStackTrace();
             toaster.error("Unexpected error during logout.");
         }
-    }
-    private void showDashboard() {
-        cardLayout.show(cardPanel, "Dashboard");
-    }
-
-
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            UserModel userModel = null;
-            try {
-                userModel = new UserModel("localhost", 12345);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            new DashboardView(userModel).setVisible(true);
-        });
     }
 }

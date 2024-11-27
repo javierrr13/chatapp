@@ -1,4 +1,4 @@
-package com.chat.servidor.model;
+package com.chat.shared;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;

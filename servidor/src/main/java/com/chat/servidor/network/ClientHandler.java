@@ -6,7 +6,6 @@ import com.chat.servidor.dao.UserDAO;
 import com.chat.servidor.dao.UserDAOImpl;
 import com.chat.servidor.model.User;
 import com.chat.servidor.util.ServerState;
-import com.chat.shared.UserProfileModel;
 
 import java.io.*;
 import java.net.Socket;
@@ -38,6 +37,7 @@ public class ClientHandler implements Runnable {
 
             boolean authenticated = false;
 
+            // Manejo de autenticación o registro
             while (!authenticated) {
                 String command = (String) input.readObject();
                 if ("LOGIN".equalsIgnoreCase(command)) {
@@ -49,6 +49,7 @@ public class ClientHandler implements Runnable {
                 }
             }
 
+            // Procesar comandos una vez autenticado
             processClientRequests();
 
         } catch (IOException | ClassNotFoundException e) {
@@ -57,31 +58,26 @@ public class ClientHandler implements Runnable {
             closeConnection();
         }
     }
+
     private void processClientRequests() {
         try {
-            String message;
-            while ((message = (String) input.readObject()) != null) {
+            String command;
+            while ((command = (String) input.readObject()) != null) {
                 if (!isAuthenticated()) {
                     sendMessage("Error: No estás autenticado.");
                     continue;
                 }
 
-                if (message.startsWith("LOGOUT")) {
+                if (command.startsWith("LOGOUT")) {
                     handleLogout();
                     break;
                 }
 
-                System.out.println("Mensaje recibido de " + loggedInUser.getUsername() + ": " + message);
+                System.out.println("Comando recibido de " + loggedInUser.getUsername() + ": " + command);
 
                 try {
-                    if (message.startsWith("SAVE_PROFILE")) {
-                        // Procesar el guardado del perfil
-                        UserProfileModel profile = (UserProfileModel) input.readObject(); // Recibir el perfil
-                        handleSaveProfile(profile);
-                    } else {
-                        // Otros comandos
-                        commandProcessor.processCommand(message, loggedInUser, input, output);
-                    }
+                    // Procesar comandos usando el CommandProcessor
+                    commandProcessor.processCommand(command, loggedInUser, input, output);
                 } catch (Exception e) {
                     sendMessage("Error: No se pudo procesar el comando.");
                     e.printStackTrace();
@@ -89,57 +85,6 @@ public class ClientHandler implements Runnable {
             }
         } catch (IOException | ClassNotFoundException e) {
             System.err.println("Error al procesar solicitudes del cliente: " + e.getMessage());
-        }
-    }
-    private void handleSaveProfile(UserProfileModel profile) {
-        try {
-            UserDAOImpl userDAO = new UserDAOImpl();
-
-            // Guardar o actualizar el perfil
-            if (userDAO.insertOrUpdateUserProfile(loggedInUser.getId(), profile)) {
-                sendMessage("PROFILE_SAVED_SUCCESSFULLY");
-                System.out.println("Perfil guardado o actualizado: " + profile);
-            } else {
-                sendMessage("ERROR: No se pudo guardar o actualizar el perfil.");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            try {
-                sendMessage("ERROR: Fallo al guardar o actualizar el perfil.");
-            } catch (IOException ioException) {
-                ioException.printStackTrace();
-            }
-        }
-    }
-
-
-
-    private void handleProfileCommands(String command) {
-        try {
-            UserDAOImpl userDAO = new UserDAOImpl();
-
-            if ("GET_PROFILE".equalsIgnoreCase(command)) {
-                UserProfileModel profile = userDAO.getUserProfile(loggedInUser.getId());
-                if (profile != null) {
-                    output.writeObject(profile); // Enviar el perfil existente
-                } else {
-                    output.writeObject("NO_PROFILE_FOUND"); // Informar que no existe perfil
-                }
-            } else if ("INSERT_PROFILE".equalsIgnoreCase(command)) {
-                UserProfileModel newProfile = (UserProfileModel) input.readObject(); // Recibir datos del nuevo perfil
-                if (userDAO.insertUserProfile(loggedInUser.getId(), newProfile)) {
-                    output.writeObject("PROFILE_CREATED_SUCCESSFULLY");
-                } else {
-                    output.writeObject("ERROR: No se pudo crear el perfil.");
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            try {
-                output.writeObject("ERROR: Fallo en la operación de perfil.");
-            } catch (IOException ioException) {
-                ioException.printStackTrace();
-            }
         }
     }
 

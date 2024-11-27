@@ -1,10 +1,13 @@
 package com.chat.cliente.model;
 
+import com.chat.shared.Conversation;
+import com.chat.shared.Message;
+import com.chat.shared.UserProfileModel;
+
 import java.io.*;
 import java.net.Socket;
-
-import com.chat.cliente.view.UserProfileView;
-import com.chat.shared.UserProfileModel;
+import java.util.ArrayList;
+import java.util.List;
 
 public class UserModel {
     private Socket socket;
@@ -42,6 +45,7 @@ public class UserModel {
         }
         return false;
     }
+
     public UserProfileModel getUserProfile() throws IOException, ClassNotFoundException {
         System.out.println("Sending profile request...");
         output.writeObject("GET_PROFILE");
@@ -65,34 +69,13 @@ public class UserModel {
             throw new ClassCastException("Unexpected response from server: " + response.getClass().getName());
         }
     }
-   
+
     public boolean saveUserProfile(UserProfileModel profile) throws IOException, ClassNotFoundException {
-        output.writeObject("SAVE_PROFILE"); // Unified command for insert or update
-        output.writeObject(profile);        // Send the profile data
-        String response = (String) input.readObject(); // Read server response
+        output.writeObject("SAVE_PROFILE");
+        output.writeObject(profile);
+        String response = (String) input.readObject();
         return "PROFILE_SAVED".equals(response);
     }
-
-
-    public boolean insertUserProfile(UserProfileModel profile) {
-        try {
-            output.writeObject("INSERT_PROFILE");
-            output.writeObject(profile);
-            String response = (String) input.readObject();
-
-            if ("PROFILE_CREATED_SUCCESSFULLY".equals(response)) {
-                System.out.println("Profile created successfully!");
-                return true;
-            } else {
-                System.err.println("Error creating profile: " + response);
-                return false;
-            }
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
 
     public boolean register(String username, String email, String password) {
         try {
@@ -106,6 +89,63 @@ public class UserModel {
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
             return false;
+        }
+    }
+
+    /**
+     * Obtener las conversaciones del usuario actual.
+     */
+    public List<Conversation> getConversations() throws IOException, ClassNotFoundException {
+        output.writeObject("LIST_CONVERSATIONS");
+        Object response = input.readObject();
+        System.out.println(response);
+        if (response instanceof List<?>) {
+            List<?> rawList = (List<?>) response;
+            List<Conversation> conversations = new ArrayList<>();
+            for (Object obj : rawList) {
+                if (obj instanceof Conversation) {
+                    conversations.add((Conversation) obj);
+                    System.out.println(rawList);
+                }
+            }
+            return conversations;
+        } else {
+            throw new IOException("Unexpected response from server while fetching conversations.");
+        }
+    }
+
+    /**
+     * Obtener mensajes de una conversación.
+     */
+    public List<Message> getMessages(int conversationId) throws IOException, ClassNotFoundException {
+        output.writeObject("GET_MESSAGES " + conversationId);
+        Object response = input.readObject(); // Leer respuesta del servidor
+
+        if (response instanceof List<?>) {
+            List<?> rawList = (List<?>) response;
+            List<Message> messages = new ArrayList<>();
+
+            for (Object obj : rawList) {
+                if (obj instanceof Message) {
+                    messages.add((Message) obj); // Deserializar objetos Message
+                }
+            }
+            System.out.println("Mensajes recibidos: " + messages);
+            return messages;
+        } else {
+            throw new IOException("Unexpected response from server while fetching messages.");
+        }
+    }
+
+    /**
+     * Enviar un mensaje a una conversación.
+     * @throws ClassNotFoundException 
+     */
+    public void sendMessage(int conversationId, String content) throws IOException, ClassNotFoundException {
+        output.writeObject("SEND_MESSAGE " + conversationId + "," + content);
+        String response = (String) input.readObject();
+        if (!"Mensaje enviado con éxito.".equals(response)) {
+            throw new IOException("Error while sending message: " + response);
         }
     }
 

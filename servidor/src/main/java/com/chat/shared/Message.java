@@ -1,8 +1,11 @@
-package com.chat.servidor.model;
+package com.chat.shared;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public class Message {
+public class Message implements Serializable {
+    private static final long serialVersionUID = 1L; // Versión de serialización
+
     private int id;
     private int conversationId;
     private int userId;
@@ -17,6 +20,7 @@ public class Message {
         this.sentAt = sentAt;
     }
 
+    // Getters
     public int getId() {
         return id;
     }
@@ -35,5 +39,17 @@ public class Message {
 
     public LocalDateTime getSentAt() {
         return sentAt;
+    }
+
+    // Método toString para depuración
+    @Override
+    public String toString() {
+        return "Message{" +
+               "id=" + id +
+               ", conversationId=" + conversationId +
+               ", userId=" + userId +
+               ", content='" + content + '\'' +
+               ", sentAt=" + sentAt +
+               '}';
     }
 }
