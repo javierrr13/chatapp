@@ -156,6 +156,7 @@ public class LoginView extends JFrame {
                 controller.showDashboardView(userModel); // Mostrar el Dashboard
                 this.dispose(); // Cerrar esta ventana
             } else {
+            	System.out.println("");
                 toaster.warn("Invalid credentials.");
             }
         } catch (IOException e) {

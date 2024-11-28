@@ -71,11 +71,24 @@ public class UserModel {
     }
 
     public boolean saveUserProfile(UserProfileModel profile) throws IOException, ClassNotFoundException {
-        output.writeObject("SAVE_PROFILE");
-        output.writeObject(profile);
-        String response = (String) input.readObject();
-        return "PROFILE_SAVED".equals(response);
+        // Verificar si ya existe un perfil para el usuario
+        UserProfileModel existingProfile = getUserProfile();
+
+        if (existingProfile != null) {
+            // Si existe, enviar el comando para actualizar el perfil
+            output.writeObject("UPDATE_PROFILE");
+            output.writeObject(profile);
+            String response = (String) input.readObject();
+            return "PROFILE_UPDATED_SUCCESSFULLY".equals(response);
+        } else {
+            // Si no existe, enviar el comando para insertar el perfil
+            output.writeObject("INSERT_PROFILE");
+            output.writeObject(profile);
+            String response = (String) input.readObject();
+            return "PROFILE_CREATED_SUCCESSFULLY".equals(response);
+        }
     }
+
 
     public boolean register(String username, String email, String password) {
         try {
