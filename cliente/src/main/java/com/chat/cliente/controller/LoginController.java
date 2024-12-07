@@ -47,11 +47,11 @@ public class LoginController {
     public void logout() {
         if (currentView != null) {
             System.out.println("Cerrando ventana actual: " + currentView.getTitle());
-            currentView.dispose(); // Asegúrate de cerrar la vista actual
+            currentView.dispose(); // Asegï¿½rate de cerrar la vista actual
             currentView = null;
         }
         System.out.println("Abriendo loginView");
-        showLoginView(); // Abrir LoginView después de cerrar DashboardView
+        showLoginView(); // Abrir LoginView despuï¿½s de cerrar DashboardView
     }
 
 

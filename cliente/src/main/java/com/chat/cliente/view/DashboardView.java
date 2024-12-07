@@ -17,17 +17,23 @@ import java.awt.image.BufferedImage;
 import java.time.LocalDateTime;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class DashboardView extends JFrame {
 
-    private final Toaster toaster;
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	private final Toaster toaster;
     private final CardLayout cardLayout;
     private final JPanel cardPanel;
     private final UserModel userModel;
 
-    private final JPanel conversationListPanel = new JPanel(new GridLayout(0, 1, 10, 10)); // Panel dinámico para las conversaciones
+    private final JPanel conversationListPanel = new JPanel(new GridLayout(0, 1, 10, 10)); // Panel dinï¿½mico para las conversaciones
     private final JPanel chatPanel = new JPanel(new BorderLayout()); // Panel para la vista de chat
     
     private final TextFieldUsername fullNameField = new TextFieldUsername();
@@ -35,7 +41,9 @@ public class DashboardView extends JFrame {
     private final TextFieldUsername profilePictureField = new TextFieldUsername();
     private final JLabel createdAtLabel = new JLabel();
     private final JLabel profilePicturePreview = new JLabel();
-    
+    private final Map<Integer, JTextArea> chatAreas = new HashMap<>();
+    private boolean isListening = false;
+
     public DashboardView(UserModel userModel) {
         super("Dashboard");
         System.out.println("Abriendo dashboard");
@@ -44,10 +52,10 @@ public class DashboardView extends JFrame {
 
         // Configurar pantalla completa
         setUndecorated(true);
-        setSize(1200, 800); // Tamaño fijo, ancho x alto
+        setSize(1200, 800); // Tamaï¿½o fijo, ancho x alto
         setLocationRelativeTo(null); 
 
-        // Configuración del CardLayout
+        // Configuraciï¿½n del CardLayout
         cardLayout = new CardLayout();
         cardPanel = new JPanel(cardLayout);
 
@@ -131,7 +139,7 @@ public class DashboardView extends JFrame {
             }
 
             for (Conversation conversation : conversations) {
-                System.out.println("Añadiendo botón para: " + conversation.getName());
+                System.out.println("Aï¿½adiendo botï¿½n para: " + conversation.getName());
                 JLabel conversationButton = new StyledButton(
                     conversation.getName(),
                     UIUtils.COLOR_INTERACTIVE,
@@ -150,34 +158,19 @@ public class DashboardView extends JFrame {
         }
     }
 
-
     private void openChat(Conversation conversation) {
         chatPanel.removeAll();
 
-        // Panel superior con título y botón "Volver"
-        JPanel topPanel = new JPanel(new BorderLayout());
-        JLabel title = new JLabel("Chat: " + conversation.getName(), SwingConstants.CENTER);
-        title.setFont(UIUtils.FONT_GENERAL_UI.deriveFont(24f));
-        title.setForeground(UIUtils.COLOR_OUTLINE);
-
-        JButton backButton = new JButton("Volver");
-        backButton.addActionListener(e -> cardLayout.show(cardPanel, "Dashboard"));
-        backButton.setBackground(UIUtils.COLOR_INTERACTIVE);
-        backButton.setForeground(Color.WHITE);
-        backButton.setFocusPainted(false);
-        backButton.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-
-        topPanel.add(backButton, BorderLayout.WEST);
-        topPanel.add(title, BorderLayout.CENTER);
-
-        JTextArea chatArea = new JTextArea();
+        // Recuperar o crear el ï¿½rea de texto asociada a la conversaciï¿½n
+        JTextArea chatArea = chatAreas.computeIfAbsent(conversation.getId(), k -> new JTextArea());
         chatArea.setEditable(false);
         chatArea.setLineWrap(true);
         chatArea.setWrapStyleWord(true);
 
-        // Cargar mensajes de la conversación
+        // Cargar mensajes histï¿½ricos
         try {
             List<Message> messages = userModel.getMessages(conversation.getId());
+            chatArea.setText(""); // Limpia el ï¿½rea antes de cargar mensajes histï¿½ricos
             for (Message message : messages) {
                 String formattedMessage = String.format(
                     "[%s] Usuario %d: %s",
@@ -192,24 +185,21 @@ public class DashboardView extends JFrame {
             e.printStackTrace();
         }
 
+        // Asegurar que estamos escuchando los mensajes en tiempo real
+        if (!isListening) { // Variable para evitar mï¿½ltiples hilos de escucha
+            userModel.listenForMessages(chatAreas);
+            isListening = true; // Iniciar solo una vez
+        }
+
         JScrollPane scrollPane = new JScrollPane(chatArea);
 
+        // Campo para enviar mensajes
         JTextField messageField = new JTextField();
         messageField.addActionListener(e -> {
             String content = messageField.getText();
             if (!content.isEmpty()) {
                 try {
-                    try {
-                        userModel.sendMessage(conversation.getId(), content);
-                    } catch (ClassNotFoundException ex) {
-                        ex.printStackTrace();
-                    }
-                    String formattedMessage = String.format(
-                        "[%s] Yo: %s",
-                        LocalDateTime.now().toLocalTime(),
-                        content
-                    );
-                    chatArea.append(formattedMessage + "\n");
+                    userModel.sendMessage(conversation.getId(), content);
                     messageField.setText("");
                 } catch (IOException ex) {
                     toaster.error("Error enviando mensaje.");
@@ -218,13 +208,24 @@ public class DashboardView extends JFrame {
             }
         });
 
-        chatPanel.add(topPanel, BorderLayout.NORTH);
+        // Botï¿½n para volver al main
+        JButton backButton = new JButton("Volver al Main");
+        backButton.setBackground(UIUtils.COLOR_INTERACTIVE);
+        backButton.setForeground(Color.WHITE);
+        backButton.setFocusPainted(false);
+        backButton.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        backButton.addActionListener(e -> cardLayout.show(cardPanel, "Dashboard"));
+
+        // Panel inferior con campo de mensaje y botï¿½n
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.add(messageField, BorderLayout.CENTER);
+        bottomPanel.add(backButton, BorderLayout.EAST);
+
         chatPanel.add(scrollPane, BorderLayout.CENTER);
-        chatPanel.add(messageField, BorderLayout.SOUTH);
+        chatPanel.add(bottomPanel, BorderLayout.SOUTH);
 
         cardLayout.show(cardPanel, "ChatView");
     }
-
 
 
     private JPanel createUserProfilePanel() {
@@ -283,7 +284,7 @@ public class DashboardView extends JFrame {
         JPanel profilePicturePanel = new JPanel(new BorderLayout());
         profilePicturePanel.setBackground(UIUtils.COLOR_BACKGROUND);
 
-        // Botón para subir imagen
+        // Botï¿½n para subir imagen
         JButton uploadButton = new JButton("Upload Image");
         uploadButton.setBackground(UIUtils.COLOR_INTERACTIVE);
         uploadButton.setForeground(Color.WHITE);
@@ -291,7 +292,7 @@ public class DashboardView extends JFrame {
         uploadButton.addActionListener(e -> uploadProfilePicture());
         profilePicturePanel.add(uploadButton, BorderLayout.NORTH);
 
-        // Imagen redonda para la previsualización
+        // Imagen redonda para la previsualizaciï¿½n
         profilePicturePreview.setPreferredSize(new Dimension(150, 150));
         profilePicturePreview.setOpaque(true);
         profilePicturePreview.setBackground(UIUtils.COLOR_OUTLINE);
@@ -325,7 +326,11 @@ public class DashboardView extends JFrame {
         saveButton.setPreferredSize(new Dimension(140, 40));
         buttonPanel.add(saveButton);
         JButton backButton = new JButton("Volver");
-        backButton.addActionListener(e -> cardLayout.show(cardPanel, "Dashboard"));
+        backButton.addActionListener(e -> {
+            userModel.stopListening(); // Detener la escucha
+            isListening = false; // Marcar que no estamos escuchando
+            cardLayout.show(cardPanel, "Dashboard");
+        });
         backButton.setBackground(UIUtils.COLOR_INTERACTIVE);
         backButton.setForeground(Color.WHITE);
         backButton.setFocusPainted(false);
@@ -360,7 +365,7 @@ public class DashboardView extends JFrame {
         profilePicturePreview.setIcon(new ImageIcon(circularImage));
     }
 
-    // Método auxiliar para adornar etiquetas
+    // Mï¿½todo auxiliar para adornar etiquetas
     private JLabel decorateLabel(String text) {
         JLabel label = new JLabel(text);
         label.setForeground(UIUtils.COLOR_INTERACTIVE);
@@ -437,10 +442,8 @@ public class DashboardView extends JFrame {
 
     private void logout() {
         try {
-            toaster.info("Logging out...");
             boolean success = userModel.logout();
             if (success) {
-                toaster.info("Logout successful.");
                 SwingUtilities.invokeLater(() -> {
                     this.dispose();
                     new LoginView(LoginController.getInstance()).setVisible(true);

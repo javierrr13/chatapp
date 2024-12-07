@@ -4,17 +4,18 @@ import com.chat.servidor.dao.ConversationDAO;
 import com.chat.servidor.dao.MessageDAO;
 import com.chat.servidor.dao.UserDAO;
 import com.chat.servidor.dao.UserDAOImpl;
-import com.chat.servidor.model.User;
 import com.chat.servidor.util.ServerState;
+import com.chat.shared.User;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.Map;
 import java.util.Optional;
 
 public class ClientHandler implements Runnable {
     private final Socket clientSocket;
-    private ObjectInputStream input;
     private ObjectOutputStream output;
+    private ObjectInputStream input;
     private User loggedInUser;
     private final UserDAO userDAO;
     private final ConversationDAO conversationDAO;
@@ -32,12 +33,13 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try {
+        	output = new ObjectOutputStream(clientSocket.getOutputStream());
             input = new ObjectInputStream(clientSocket.getInputStream());
-            output = new ObjectOutputStream(clientSocket.getOutputStream());
-
+            
+            
             boolean authenticated = false;
 
-            // Manejo de autenticación o registro
+            // Manejo de autenticaciï¿½n o registro
             while (!authenticated) {
                 String command = (String) input.readObject();
                 if ("LOGIN".equalsIgnoreCase(command)) {
@@ -45,15 +47,16 @@ public class ClientHandler implements Runnable {
                 } else if ("REGISTER".equalsIgnoreCase(command)) {
                     registerUser();
                 } else {
-                    sendMessage("Error: Debes iniciar sesión o registrarte primero.");
+                    sendMessage("Error: Debes iniciar sesiï¿½n o registrarte primero.");
                 }
             }
 
             // Procesar comandos una vez autenticado
+            
             processClientRequests();
 
         } catch (IOException | ClassNotFoundException e) {
-            System.err.println("Error en la conexión con el cliente: " + e.getMessage());
+            System.err.println("Error en la conexiï¿½n con el cliente: " + e.getMessage());
         } finally {
             closeConnection();
         }
@@ -64,7 +67,7 @@ public class ClientHandler implements Runnable {
             String command;
             while ((command = (String) input.readObject()) != null) {
                 if (!isAuthenticated()) {
-                    sendMessage("Error: No estás autenticado.");
+                    sendMessage("Error: No estï¿½s autenticado.");
                     continue;
                 }
 
@@ -77,12 +80,21 @@ public class ClientHandler implements Runnable {
 
                 try {
                     // Procesar comandos usando el CommandProcessor
+                	
+                	Map<Socket,User> connectedClients = ServerState.getConnectedClients();
+                	System.out.println("Clientes conectados: ");
+                	connectedClients.values().stream()
+                    .map(user -> String.format("ID=%d, Username=%s", user.getId(), user.getUsername()))
+                    .forEach(System.out::println);
+
                     commandProcessor.processCommand(command, loggedInUser, input, output);
                 } catch (Exception e) {
                     sendMessage("Error: No se pudo procesar el comando.");
                     e.printStackTrace();
                 }
             }
+        } catch (EOFException e) {
+            System.out.println("Cliente desconectado: " + loggedInUser.getUsername());
         } catch (IOException | ClassNotFoundException e) {
             System.err.println("Error al procesar solicitudes del cliente: " + e.getMessage());
         }
@@ -97,19 +109,23 @@ public class ClientHandler implements Runnable {
                 Optional<User> userOpt = userDAO.getUserByUsername(username);
                 if (userOpt.isPresent()) {
                     this.loggedInUser = userOpt.get();
-                    sendMessage("LOG_SUCCESS");
+
+                    // Registrar al usuario en el estado del servidor
                     ServerState.addClient(clientSocket, loggedInUser);
+
+                    sendMessage("LOG_SUCCESS");
                     System.out.println("Usuario autenticado: " + loggedInUser.getUsername());
                     return true;
                 }
             }
             sendMessage("LOG_FAILS");
         } catch (Exception e) {
-            sendMessage("Error: Ocurrió un problema durante la autenticación.");
+            sendMessage("Error: Ocurriï¿½ un problema durante la autenticaciï¿½n.");
             e.printStackTrace();
         }
         return false;
     }
+
 
     private void registerUser() throws IOException, ClassNotFoundException {
         String username = (String) input.readObject();
@@ -119,20 +135,22 @@ public class ClientHandler implements Runnable {
         try {
             User newUser = new User(username, email, password);
             if (userDAO.registerUser(newUser)) {
-                sendMessage("Registro exitoso. Ahora puedes iniciar sesión.");
+                sendMessage("Registro exitoso. Ahora puedes iniciar sesiï¿½n.");
             } else {
                 sendMessage("Error: No se pudo completar el registro. El usuario ya existe.");
             }
         } catch (Exception e) {
-            sendMessage("Error: Ocurrió un problema durante el registro.");
+            sendMessage("Error: Ocurriï¿½ un problema durante el registro.");
             e.printStackTrace();
         }
     }
 
     private void handleLogout() throws IOException {
-        System.out.println("El usuario " + loggedInUser.getUsername() + " cerró sesión.");
+        System.out.println("El usuario " + loggedInUser.getUsername() + " cerrï¿½ sesiï¿½n.");
         sendMessage("LOGOUT_SUCCESS");
+        System.out.println(ServerState.getConnectedClients());
         ServerState.removeClient(clientSocket);
+        System.out.println(ServerState.getConnectedClients());
         loggedInUser = null;
     }
 

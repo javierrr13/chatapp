@@ -17,7 +17,9 @@ import java.io.IOException;
 
 public class LoginView extends JFrame {
 
-    private final Toaster toaster;
+ 
+	private static final long serialVersionUID = 1L;
+	private final Toaster toaster;
     private final LoginController controller;
 
     private final JPanel cardPanel; // Panel principal con CardLayout
@@ -156,7 +158,7 @@ public class LoginView extends JFrame {
                 controller.showDashboardView(userModel); // Mostrar el Dashboard
                 this.dispose(); // Cerrar esta ventana
             } else {
-            	System.out.println("");
+            	System.out.println("LOGIN fallido");
                 toaster.warn("Invalid credentials.");
             }
         } catch (IOException e) {

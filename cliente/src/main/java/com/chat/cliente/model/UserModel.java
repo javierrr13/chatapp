@@ -1,5 +1,6 @@
 package com.chat.cliente.model;
 
+import com.chat.servidor.util.MyObjectOutputStream;
 import com.chat.shared.Conversation;
 import com.chat.shared.Message;
 import com.chat.shared.UserProfileModel;
@@ -8,16 +9,22 @@ import java.io.*;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
+import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 
 public class UserModel {
     private Socket socket;
     private ObjectOutputStream output;
     private ObjectInputStream input;
-
+    private volatile boolean listening = true;
+    
     public UserModel(String serverHost, int serverPort) throws IOException {
         this.socket = new Socket(serverHost, serverPort);
         this.output = new ObjectOutputStream(socket.getOutputStream());
         this.input = new ObjectInputStream(socket.getInputStream());
+        
     }
 
     public boolean login(String username, String password) {
@@ -36,15 +43,45 @@ public class UserModel {
 
     public boolean logout() {
         try {
-            output.writeObject("LOGOUT");
-            output.flush();
-            String response = (String) input.readObject();
-            return "LOGOUT_SUCCESS".equals(response);
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+            // Enviar solicitud de logout al servidor
+            if (socket != null && output != null) {
+                output.writeObject("LOGOUT");
+                output.flush();
+            }
+
+            // Detener la escucha
+            stopListening();
+
+            // Cerrar streams y socket
+            if (input != null) {
+                input.close();
+            }
+            if (output != null) {
+                output.close();
+            }
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+
+            System.out.println("Cliente cerrado correctamente.");
+            return true;
+        } catch (IOException e) {
+            System.err.println("Error al cerrar cliente: " + e.getMessage());
+            return false;
         }
-        return false;
     }
+    public void stopListening() {
+        listening = false; // Detener el bucle en el hilo
+        try {
+            if (socket != null && !socket.isClosed()) {
+                socket.close(); // Cerrar el socket para detener la lectura
+            }
+        } catch (IOException e) {
+            System.err.println("Error al cerrar el socket: " + e.getMessage());
+        }
+        System.out.println("Escucha detenida.");
+    }
+
 
     public UserProfileModel getUserProfile() throws IOException, ClassNotFoundException {
         System.out.println("Sending profile request...");
@@ -57,7 +94,7 @@ public class UserModel {
         } else if (response instanceof String) {
             String serverMessage = (String) response;
 
-            // Manejo de mensajes específicos
+            // Manejo de mensajes especï¿½ficos
             if ("NO_PROFILE_FOUND".equals(serverMessage)) {
                 System.out.println("No profile found for user.");
                 return null; // Indicar al cliente que no hay perfil
@@ -128,47 +165,82 @@ public class UserModel {
     }
 
     /**
-     * Obtener mensajes de una conversación.
+     * Obtener mensajes de una conversaciï¿½n.
      */
     public List<Message> getMessages(int conversationId) throws IOException, ClassNotFoundException {
-        output.writeObject("GET_MESSAGES " + conversationId);
-        Object response = input.readObject(); // Leer respuesta del servidor
+        synchronized (output) {
+            output.writeObject("GET_MESSAGES " + conversationId);
+            output.reset(); // Limpia referencias persistentes
 
-        if (response instanceof List<?>) {
-            List<?> rawList = (List<?>) response;
-            List<Message> messages = new ArrayList<>();
+            Object response = input.readObject(); // Leer respuesta del servidor
 
-            for (Object obj : rawList) {
-                if (obj instanceof Message) {
-                    messages.add((Message) obj); // Deserializar objetos Message
+            if (response instanceof List<?>) {
+                List<?> rawList = (List<?>) response;
+                List<Message> messages = new ArrayList<>();
+
+                for (Object obj : rawList) {
+                    if (obj instanceof Message) {
+                        messages.add((Message) obj); // Deserializar objetos Message
+                    }
                 }
+                System.out.println("Mensajes recibidos: " + messages);
+                return messages;
+            } else {
+                throw new IOException("Unexpected response from server while fetching messages.");
             }
-            System.out.println("Mensajes recibidos: " + messages);
-            return messages;
-        } else {
-            throw new IOException("Unexpected response from server while fetching messages.");
         }
     }
 
-    /**
-     * Enviar un mensaje a una conversación.
-     * @throws ClassNotFoundException 
-     */
-    public void sendMessage(int conversationId, String content) throws IOException, ClassNotFoundException {
-        output.writeObject("SEND_MESSAGE " + conversationId + "," + content);
-        String response = (String) input.readObject();
-        if (!"Mensaje enviado con éxito.".equals(response)) {
-            throw new IOException("Error while sending message: " + response);
+    public void sendMessage(int conversationId, String content) throws IOException {
+        synchronized (output) {
+            output.writeObject("SEND_MESSAGE " + conversationId + "," + content);
+            output.reset(); // Limpia referencias persistentes
         }
     }
 
-    public void close() {
-        try {
-            if (output != null) output.close();
-            if (input != null) input.close();
-            if (socket != null) socket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
+    public void listenForMessages(Map<Integer, JTextArea> chatAreas) {
+        new Thread(() -> {
+            System.out.println("Hilo escucha invocado");
+            try {
+                while (listening && !socket.isClosed() && socket.isConnected()) {
+                    Object response;
+                    synchronized (input) {
+                        response = input.readObject(); // Leer objeto del flujo
+                    }
+
+                    if (response instanceof Message message) {
+                        int conversationId = message.getConversationId();
+                        String formattedMessage = String.format(
+                            "[%s] Usuario %d: %s",
+                            message.getSentAt().toLocalTime(),
+                            message.getUserId(),
+                            message.getContent()
+                        );
+
+                        SwingUtilities.invokeLater(() -> {
+                            JTextArea chatArea = chatAreas.get(conversationId);
+                            if (chatArea != null) {
+                                chatArea.append(formattedMessage + "\n");
+                            } else {
+                                System.err.println("No chat area found for conversation ID: " + conversationId);
+                            }
+                        });
+                    } else if (response instanceof String) {
+                        System.out.println("Mensaje del servidor: " + response);
+                    } else {
+                        System.err.println("Tipo inesperado recibido: " + response.getClass().getName());
+                    }
+                }
+            } catch (StreamCorruptedException e) {
+                System.err.println(e.getMessage());
+            } catch (IOException | ClassNotFoundException e) {
+                System.err.println("Error en el hilo de escucha: " + e.getMessage());
+            } finally {
+                System.out.println("Hilo de escucha terminado.");
+                listening = false; // Asegurarse de que la variable estï¿½ desactivada
+            }
+        }).start();
     }
+
 }

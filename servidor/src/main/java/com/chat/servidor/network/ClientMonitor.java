@@ -1,7 +1,7 @@
 package com.chat.servidor.network;
 
 import com.chat.servidor.util.ServerState;
-import com.chat.servidor.model.User;
+import com.chat.shared.User;
 
 import java.net.Socket;
 import java.util.Set;

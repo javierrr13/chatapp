@@ -24,8 +24,10 @@ public class UserController {
     public static boolean handleRegister(String username, String email, String password) {
         return userModel.register(username, email, password);
     }
-
-    public static void closeConnection() {
-        userModel.close();
+    public static UserModel getUserModel() {
+        return userModel;
     }
+
+
+
 }

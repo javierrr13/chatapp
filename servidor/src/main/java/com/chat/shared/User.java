@@ -1,4 +1,4 @@
-package com.chat.servidor.model;
+package com.chat.shared;
 
 public class User {
     private int id;

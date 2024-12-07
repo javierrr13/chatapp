@@ -1,6 +1,6 @@
 package com.chat.servidor.dao;
 
-import com.chat.servidor.model.User;
+import com.chat.shared.User;
 
 import java.sql.SQLException;
 import java.util.Optional;

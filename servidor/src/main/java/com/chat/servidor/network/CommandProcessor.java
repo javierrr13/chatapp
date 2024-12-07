@@ -4,7 +4,8 @@ import com.chat.servidor.dao.ConversationDAO;
 import com.chat.servidor.dao.MessageDAO;
 import com.chat.servidor.dao.UserDAOImpl;
 import com.chat.shared.Message;
-import com.chat.servidor.model.User;
+import com.chat.shared.User;
+import com.chat.servidor.util.ServerState;
 import com.chat.shared.UserProfileModel;
 import com.chat.shared.Conversation;
 
@@ -12,6 +13,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -64,19 +66,19 @@ public class CommandProcessor {
             if (parts.length > 1) {
                 int conversationId = Integer.parseInt(parts[1].trim());
 
-                // Validar si el usuario pertenece a la conversación
+                // Validar si el usuario pertenece a la conversaciï¿½n
                 if (conversationService.canSendMessage(user.getId(), conversationId)) {
                     // Obtener los mensajes como objetos Message
                     List<Message> messages = messageService.getMessagesByConversation(conversationId);
-
+                    ServerState.getClientsInConversation(conversationId);
                     // Enviar directamente los objetos Message
                     output.writeObject(messages);
                     System.out.println("Mensajes enviados: " + messages);
                 } else {
-                    output.writeObject("ERROR: No estás autorizado para ver los mensajes de esta conversación.");
+                    output.writeObject("ERROR: No estï¿½s autorizado para ver los mensajes de esta conversaciï¿½n.");
                 }
             } else {
-                output.writeObject("Error: Faltan parámetros para GET_MESSAGES. Formato esperado: GET_MESSAGES conversationId.");
+                output.writeObject("Error: Faltan parï¿½metros para GET_MESSAGES. Formato esperado: GET_MESSAGES conversationId.");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -98,19 +100,19 @@ public class CommandProcessor {
                     String conversationName = createParams[0].trim();
                     int statusId = Integer.parseInt(createParams[1].trim());
 
-                    // Crear la conversación y agregar al usuario como miembro
+                    // Crear la conversaciï¿½n y agregar al usuario como miembro
                     Conversation conversation = conversationService.createConversation(conversationName, statusId, user.getId());
                     output.writeObject("CONVERSATION_CREATED: " + conversation);
                 } else {
-                    output.writeObject("Error: Faltan parámetros para CREATE_CONVERSATION. Formato esperado: nombre,statusId.");
+                    output.writeObject("Error: Faltan parï¿½metros para CREATE_CONVERSATION. Formato esperado: nombre,statusId.");
                 }
             } else {
-                output.writeObject("Error: Faltan parámetros para CREATE_CONVERSATION.");
+                output.writeObject("Error: Faltan parï¿½metros para CREATE_CONVERSATION.");
             }
         } catch (Exception e) {
             e.printStackTrace();
             try {
-                output.writeObject("ERROR: No se pudo crear la conversación.");
+                output.writeObject("ERROR: No se pudo crear la conversaciï¿½n.");
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -125,28 +127,45 @@ public class CommandProcessor {
                     int conversationId = Integer.parseInt(messageParams[0].trim());
                     String content = messageParams[1].trim();
 
-                    // Validar si el usuario pertenece a la conversación
                     if (conversationService.canSendMessage(user.getId(), conversationId)) {
+                        // Crear un nuevo objeto Message
+                        Message newMessage = new Message(0, conversationId, user.getId(), content, LocalDateTime.now());
+                        
+                        // Registrar el mensaje en el servicio
                         messageService.addMessage(conversationId, user.getId(), content);
-                        output.writeObject("Mensaje enviado con éxito.");
+                        
+                        // Enviar el mensaje a todos los clientes en la conversaciï¿½n
+                        ServerState.broadcastToConversation(conversationId, newMessage);
+                        
+                        System.out.println(newMessage.getClass().getName());
+
+                        // Confirmar al cliente que enviï¿½ el mensaje con ï¿½xito
+                        output.writeObject(newMessage);
+                        output.reset();
+                        output.flush();
                     } else {
-                        output.writeObject("ERROR: No estás autorizado para enviar mensajes en esta conversación.");
+                        output.writeObject("ERROR: No estï¿½s autorizado para enviar mensajes en esta conversaciï¿½n.");
+                        output.flush();
                     }
                 } else {
-                    output.writeObject("Error: Faltan parámetros para SEND_MESSAGE. Formato esperado: conversationId,content.");
+                    output.writeObject("Error: Faltan parï¿½metros para SEND_MESSAGE. Formato esperado: conversationId,content.");
+                    output.flush();
                 }
             } else {
-                output.writeObject("Error: Faltan parámetros para SEND_MESSAGE.");
+                output.writeObject("Error: Faltan parï¿½metros para SEND_MESSAGE.");
+                output.flush();
             }
         } catch (Exception e) {
             e.printStackTrace();
             try {
                 output.writeObject("ERROR: No se pudo enviar el mensaje.");
-            } catch (Exception ex) {
+                output.flush();
+            } catch (IOException ex) {
                 ex.printStackTrace();
             }
         }
     }
+
 
     private void handleListConversations(User user, ObjectOutputStream output) throws IOException {
         try {
@@ -173,7 +192,7 @@ public class CommandProcessor {
                 output.writeObject(profile);
                 System.out.println("Perfil enviado: " + profile);
             } else {
-                System.out.println("El usuario no tiene un perfil creado. Solicitando datos para creación.");
+                System.out.println("El usuario no tiene un perfil creado. Solicitando datos para creaciï¿½n.");
                 output.writeObject("NO_PROFILE_FOUND");
             }
         } catch (Exception e) {
@@ -200,7 +219,7 @@ public class CommandProcessor {
         } catch (Exception e) {
             e.printStackTrace();
             try {
-                output.writeObject("ERROR: Fallo en la creación del perfil.");
+                output.writeObject("ERROR: Fallo en la creaciï¿½n del perfil.");
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -221,7 +240,7 @@ public class CommandProcessor {
         } catch (Exception e) {
             e.printStackTrace();
             try {
-                output.writeObject("ERROR: No se pudo procesar la actualización del perfil.");
+                output.writeObject("ERROR: No se pudo procesar la actualizaciï¿½n del perfil.");
             } catch (Exception ex) {
                 ex.printStackTrace();
             }

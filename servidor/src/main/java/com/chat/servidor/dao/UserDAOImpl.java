@@ -1,6 +1,6 @@
 package com.chat.servidor.dao;
 
-import com.chat.servidor.model.User;
+import com.chat.shared.User;
 import com.chat.servidor.util.DatabaseConfig;
 import com.chat.shared.UserProfileModel;
 
@@ -53,7 +53,7 @@ public class UserDAOImpl implements UserDAO {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 String storedPassword = rs.getString("password");
-                return storedPassword.equals(password); // Mejor usar hashing en producción
+                return storedPassword.equals(password); // Mejor usar hashing en producciï¿½n
             }
         }
         return false;
@@ -90,7 +90,7 @@ public class UserDAOImpl implements UserDAO {
      * Actualizar el perfil del usuario.
      * @param userId ID del usuario.
      * @param profile Perfil actualizado.
-     * @return `true` si se actualizó correctamente, `false` en caso contrario.
+     * @return `true` si se actualizï¿½ correctamente, `false` en caso contrario.
      */
     public boolean updateUserProfile(int userId, UserProfileModel profile) {
         String query = "UPDATE user_profiles SET full_name = ?, bio = ?, profile_picture = ? WHERE user_id = ?";
@@ -110,7 +110,7 @@ public class UserDAOImpl implements UserDAO {
      * Crear un nuevo perfil para un usuario.
      * @param userId ID del usuario.
      * @param profile Datos del nuevo perfil.
-     * @return `true` si se creó correctamente, `false` en caso contrario.
+     * @return `true` si se creï¿½ correctamente, `false` en caso contrario.
      */
     public boolean insertUserProfile(int userId, UserProfileModel profile) {
         String query = "INSERT INTO user_profiles (user_id, full_name, bio, profile_picture, created_at) VALUES (?, ?, ?, ?, NOW())";
@@ -130,7 +130,7 @@ public class UserDAOImpl implements UserDAO {
      * Inserta o actualiza un perfil de usuario.
      * @param userId ID del usuario.
      * @param profile Perfil a insertar o actualizar.
-     * @return `true` si la operación fue exitosa, `false` en caso contrario.
+     * @return `true` si la operaciï¿½n fue exitosa, `false` en caso contrario.
      */
     public boolean insertOrUpdateUserProfile(int userId, UserProfileModel profile) {
         String checkQuery = "SELECT COUNT(*) FROM user_profiles WHERE user_id = ?";

@@ -12,7 +12,11 @@ import java.io.IOException;
 
 public class HomeView extends JFrame {
 
-    private final Toaster toaster;
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	private final Toaster toaster;
     private final JPanel cardPanel;
     private final CardLayout cardLayout;
     private final UserModel userModel;

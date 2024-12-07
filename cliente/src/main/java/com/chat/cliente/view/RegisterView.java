@@ -10,14 +10,19 @@ import com.chat.cliente.utils.StyledButton;
 import com.chat.cliente.utils.TextFieldPassword;
 import com.chat.cliente.utils.TextFieldUsername;
 import com.chat.cliente.utils.UIUtils;
-
+   
 import java.awt.*;
 import java.awt.event.*;
 import java.io.IOException;
 
 public class RegisterView extends JFrame {
 
-    private final Toaster toaster;
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	private final Toaster toaster;
 
     private final TextFieldUsername usernameField = new TextFieldUsername();
     private final TextFieldUsername emailField = new TextFieldUsername();
@@ -29,7 +34,7 @@ public class RegisterView extends JFrame {
         super("Register");
         this.controller = controller;
 
-        // Configuración de la ventana
+        // Configuraciï¿½n de la ventana
         this.setUndecorated(true);
 
         JPanel mainPanel = getMainPanel();
@@ -156,7 +161,7 @@ public class RegisterView extends JFrame {
             boolean success = userModel.register(username, email, password);
 
             if (success) {
-                toaster.success("Registro exitoso. Ahora puedes iniciar sesión.");
+                toaster.success("Registro exitoso. Ahora puedes iniciar sesiï¿½n.");
                 this.dispose(); // Cerrar ventana de registro
             } else {
                 toaster.warn("Error en el registro. Intenta nuevamente.");
