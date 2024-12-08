@@ -18,7 +18,7 @@ public class UserModel {
     private Socket socket;
     private ObjectOutputStream output;
     private ObjectInputStream input;
-    private volatile boolean listening = true;
+    private volatile boolean listening = false;
     
     public UserModel(String serverHost, int serverPort) throws IOException {
         this.socket = new Socket(serverHost, serverPort);
@@ -200,47 +200,51 @@ public class UserModel {
 
 
     public void listenForMessages(Map<Integer, JTextArea> chatAreas) {
-        new Thread(() -> {
-            System.out.println("Hilo escucha invocado");
-            try {
-                while (listening && !socket.isClosed() && socket.isConnected()) {
-                    Object response;
-                    synchronized (input) {
-                        response = input.readObject(); // Leer objeto del flujo
-                    }
+        if (!listening) { // Evitar múltiples hilos de escucha
+            new Thread(() -> {
+                System.out.println("Hilo escucha invocado");
+                listening = true; // Marcar como en ejecución
+                try {
+                    while (listening) {
+                        Object response;
+                        synchronized (input) {
+                            response = input.readObject();
+                            System.out.println(response); // Leer objeto del flujo
+                        }
 
-                    if (response instanceof Message message) {
-                        int conversationId = message.getConversationId();
-                        String formattedMessage = String.format(
-                            "[%s] Usuario %d: %s",
-                            message.getSentAt().toLocalTime(),
-                            message.getUserId(),
-                            message.getContent()
-                        );
+                        if (response instanceof Message message) {
+                            int conversationId = message.getConversationId();
+                            String formattedMessage = String.format(
+                                "[%s] Usuario %d: %s",
+                                message.getSentAt().toLocalTime(),
+                                message.getUserId(),
+                                message.getContent()
+                            );
 
-                        SwingUtilities.invokeLater(() -> {
-                            JTextArea chatArea = chatAreas.get(conversationId);
-                            if (chatArea != null) {
-                                chatArea.append(formattedMessage + "\n");
-                            } else {
-                                System.err.println("No chat area found for conversation ID: " + conversationId);
-                            }
-                        });
-                    } else if (response instanceof String) {
-                        System.out.println("Mensaje del servidor: " + response);
-                    } else {
-                        System.err.println("Tipo inesperado recibido: " + response.getClass().getName());
+                            SwingUtilities.invokeLater(() -> {
+                                JTextArea chatArea = chatAreas.get(conversationId);
+                                if (chatArea != null) {
+                                    chatArea.append(formattedMessage + "\n");
+                                } else {
+                                    System.err.println("No chat area found for conversation ID: " + conversationId);
+                                }
+                            });
+                        } else if (response instanceof String) {
+                            System.out.println("Mensaje del servidor: " + response);
+                        } else {
+                            System.err.println("Tipo inesperado recibido: " + response.getClass().getName());
+                        }
                     }
+                } catch (IOException | ClassNotFoundException e) {
+                    System.err.println("Error en el hilo de escucha: " + e.getMessage());
+                } finally {
+                    listening = false;
+                    System.out.println("Hilo de escucha terminado.");
                 }
-            } catch (StreamCorruptedException e) {
-                System.err.println(e.getMessage());
-            } catch (IOException | ClassNotFoundException e) {
-                System.err.println("Error en el hilo de escucha: " + e.getMessage());
-            } finally {
-                System.out.println("Hilo de escucha terminado.");
-                listening = false; // Asegurarse de que la variable est� desactivada
-            }
-        }).start();
+            }).start();
+        } else {
+            System.out.println("El hilo de escucha ya está en ejecución.");
+        }
     }
 
 }

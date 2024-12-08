@@ -60,7 +60,6 @@ public class ServerState {
                 User user = entry.getValue();
                 if (user != null && userIds.contains(user.getId())) {
                     clients.add(entry.getKey());
-                    System.out.println(entry);
                 }
             }
         } catch (SQLException e) {
@@ -69,18 +68,24 @@ public class ServerState {
         System.out.println(clients);
         return clients;
     }
-    public static void broadcastToConversation(int conversationId, Message message) {
+    public static void broadcastToConversation(int conversationId, Message message, Socket senderSocket) {
         Set<Socket> conversationClients = getClientsInConversation(conversationId);
 
         for (Socket client : conversationClients) {
+            // Evitar enviar el mensaje de vuelta al emisor
+            if (client.equals(senderSocket)) {
+                continue;
+            }
+
             try {
                 // Obtener el flujo de salida correspondiente al cliente
                 ObjectOutputStream clientOutput = getOutputStream(client);
 
-                // Sincronizar el flujo de salida para evitar conflictos en la escritura simult�nea
+                // Sincronizar el flujo de salida para evitar conflictos en la escritura simultánea
                 synchronized (clientOutput) {
                     // Escribir el mensaje en el flujo de salida del cliente
                     clientOutput.writeObject(message);
+                    clientOutput.reset();
                     clientOutput.flush();
                 }
             } catch (IOException e) {
@@ -90,6 +95,17 @@ public class ServerState {
         }
     }
 
+
+    public static Socket getSocketByUser(User user) {
+        synchronized (connectedClients) {
+            for (Map.Entry<Socket, User> entry : connectedClients.entrySet()) {
+                if (entry.getValue().equals(user)) {
+                    return entry.getKey();
+                }
+            }
+        }
+        return null; // Devuelve null si no se encuentra el socket
+    }
 
     private static ObjectOutputStream getOutputStream(Socket client) throws IOException {
         if (!outputStreamMap.containsKey(client)) {

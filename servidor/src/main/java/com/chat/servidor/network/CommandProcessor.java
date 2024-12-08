@@ -12,6 +12,7 @@ import com.chat.shared.Conversation;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.Socket;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -120,6 +121,7 @@ public class CommandProcessor {
     }
 
     private void handleSendMessage(String[] parts, User user, ObjectOutputStream output) {
+    	Socket senderSocket = ServerState.getSocketByUser(user);
         try {
             if (parts.length > 1) {
                 String[] messageParams = parts[1].split(",", 2);
@@ -135,11 +137,9 @@ public class CommandProcessor {
                         messageService.addMessage(conversationId, user.getId(), content);
                         
                         // Enviar el mensaje a todos los clientes en la conversaci�n
-                        ServerState.broadcastToConversation(conversationId, newMessage);
-                        
-                        System.out.println(newMessage.getClass().getName());
-
-                        // Confirmar al cliente que envi� el mensaje con �xito
+                        ServerState.broadcastToConversation(conversationId, newMessage, senderSocket);
+                
+                        // Confirmar al cliente que envio el mensaje con �xito
                         output.writeObject(newMessage);
                         output.reset();
                         output.flush();
