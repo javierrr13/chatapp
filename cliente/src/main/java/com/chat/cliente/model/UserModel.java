@@ -1,16 +1,18 @@
 package com.chat.cliente.model;
 
-import com.chat.servidor.util.MyObjectOutputStream;
+
 import com.chat.shared.Conversation;
 import com.chat.shared.Message;
 import com.chat.shared.UserProfileModel;
 
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
@@ -19,11 +21,15 @@ public class UserModel {
     private ObjectOutputStream output;
     private ObjectInputStream input;
     private volatile boolean listening = false;
-    
+    private volatile boolean isClosing = false;
+    private final BlockingQueue<Object> messageQueue = new LinkedBlockingQueue<>();
+    private Thread listeningThread; // Variable para el hilo de escucha
+
     public UserModel(String serverHost, int serverPort) throws IOException {
         this.socket = new Socket(serverHost, serverPort);
         this.output = new ObjectOutputStream(socket.getOutputStream());
         this.input = new ObjectInputStream(socket.getInputStream());
+        startMessageSender();
         
     }
 
@@ -40,72 +46,47 @@ public class UserModel {
             return false;
         }
     }
-
-    public boolean logout() {
-        try {
-            // Enviar solicitud de logout al servidor
-            if (socket != null && output != null) {
-                output.writeObject("LOGOUT");
-                output.flush();
-            }
-
-            // Detener la escucha
-            stopListening();
-
-            // Cerrar streams y socket
-            if (input != null) {
-                input.close();
-            }
-            if (output != null) {
-                output.close();
-            }
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
-            }
-
-            System.out.println("Cliente cerrado correctamente.");
-            return true;
-        } catch (IOException e) {
-            System.err.println("Error al cerrar cliente: " + e.getMessage());
-            return false;
-        }
-    }
-    public void stopListening() {
-        listening = false; // Detener el bucle en el hilo
-        try {
-            if (socket != null && !socket.isClosed()) {
-                socket.close(); // Cerrar el socket para detener la lectura
-            }
-        } catch (IOException e) {
-            System.err.println("Error al cerrar el socket: " + e.getMessage());
-        }
-        System.out.println("Escucha detenida.");
-    }
-
-
+//    public UserProfileModel getUserProfile() throws IOException, ClassNotFoundException {
+//        System.out.println("Sending profile request...");
+//        output.writeObject("GET_PROFILE");
+//        Object response = input.readObject();
+//        System.out.println("Response received.");
+//
+//        if (response instanceof UserProfileModel) {
+//            return (UserProfileModel) response; // Retornar el perfil si existe
+//        } else if (response instanceof String) {
+//            String serverMessage = (String) response;
+//
+//            // Manejo de mensajes espec�ficos
+//            if ("NO_PROFILE_FOUND".equals(serverMessage)) {
+//                System.out.println("No profile found for user.");
+//                return null; // Indicar al cliente que no hay perfil
+//            } else {
+//                System.err.println("Error from server: " + serverMessage);
+//                throw new IOException("Error from server: " + serverMessage);
+//            }
+//        } else {
+//            throw new ClassCastException("Unexpected response from server: " + response.getClass().getName());
+//        }
+//    }
     public UserProfileModel getUserProfile() throws IOException, ClassNotFoundException {
-        System.out.println("Sending profile request...");
+        if (socket == null || socket.isClosed()) {
+            throw new IOException("Socket cerrado, no se puede obtener el perfil.");
+        }
+        
+        // Enviar solicitud al servidor
         output.writeObject("GET_PROFILE");
+        output.flush();
+
+        // Leer la respuesta del servidor
         Object response = input.readObject();
-        System.out.println("Response received.");
-
         if (response instanceof UserProfileModel) {
-            return (UserProfileModel) response; // Retornar el perfil si existe
-        } else if (response instanceof String) {
-            String serverMessage = (String) response;
-
-            // Manejo de mensajes espec�ficos
-            if ("NO_PROFILE_FOUND".equals(serverMessage)) {
-                System.out.println("No profile found for user.");
-                return null; // Indicar al cliente que no hay perfil
-            } else {
-                System.err.println("Error from server: " + serverMessage);
-                throw new IOException("Error from server: " + serverMessage);
-            }
+            return (UserProfileModel) response;
         } else {
-            throw new ClassCastException("Unexpected response from server: " + response.getClass().getName());
+            throw new IOException("Respuesta inesperada del servidor.");
         }
     }
+
 
     public boolean saveUserProfile(UserProfileModel profile) throws IOException, ClassNotFoundException {
         // Verificar si ya existe un perfil para el usuario
@@ -190,26 +171,21 @@ public class UserModel {
             }
         }
     }
-
-    public void sendMessage(int conversationId, String content) throws IOException {
-        synchronized (output) {
-            output.writeObject("SEND_MESSAGE " + conversationId + "," + content);
-            output.reset(); // Limpia referencias persistentes
-        }
-    }
-
-
     public void listenForMessages(Map<Integer, JTextArea> chatAreas) {
-        if (!listening) { // Evitar múltiples hilos de escucha
-            new Thread(() -> {
-                System.out.println("Hilo escucha invocado");
-                listening = true; // Marcar como en ejecución
+        if (!listening) {
+            listeningThread = new Thread(() -> {
+                System.out.println("Hilo de escucha iniciado.");
+                listening = true; // Inicia la escucha
                 try {
-                    while (listening) {
+                    while (listening && !Thread.currentThread().isInterrupted()) {
                         Object response;
-                        synchronized (input) {
+                        synchronized (input) { // Protección del ObjectInputStream
+                            if (input.available() == 0) {
+                                Thread.sleep(100); // Evita consumir CPU innecesariamente
+                                continue;
+                            }
+                            System.out.println("S");
                             response = input.readObject();
-                            System.out.println(response); // Leer objeto del flujo
                         }
 
                         if (response instanceof Message message) {
@@ -225,26 +201,131 @@ public class UserModel {
                                 JTextArea chatArea = chatAreas.get(conversationId);
                                 if (chatArea != null) {
                                     chatArea.append(formattedMessage + "\n");
-                                } else {
-                                    System.err.println("No chat area found for conversation ID: " + conversationId);
                                 }
                             });
                         } else if (response instanceof String) {
                             System.out.println("Mensaje del servidor: " + response);
-                        } else {
-                            System.err.println("Tipo inesperado recibido: " + response.getClass().getName());
                         }
                     }
-                } catch (IOException | ClassNotFoundException e) {
-                    System.err.println("Error en el hilo de escucha: " + e.getMessage());
+                } catch (SocketException e) {
+                    if (isClosing) {
+                        System.out.println("Socket cerrado correctamente.");
+                    } else {
+                        System.err.println("Error de socket inesperado: " + e.getMessage());
+                    }
+                } catch (IOException | ClassNotFoundException | InterruptedException e) {
+                    if (!listening) {
+                        System.out.println("Hilo de escucha detenido por interrupción.");
+                    } else {
+                        System.err.println("Error en el hilo de escucha: " + e.getMessage());
+                    }
                 } finally {
-                    listening = false;
-                    System.out.println("Hilo de escucha terminado.");
+                    System.out.println("Finalizando hilo de escucha...");
+                    listening = false; // Asegúrate de resetear la variable
                 }
-            }).start();
-        } else {
-            System.out.println("El hilo de escucha ya está en ejecución.");
+            }, "ListenerThread");
+
+            listeningThread.start(); // Inicia el hilo
         }
     }
+
+
+ public void startMessageSender() {
+     new Thread(() -> {
+         System.out.println("Hilo de escritura iniciado...");
+         while (true) {
+             try {
+                 Object message = messageQueue.take(); // Toma un mensaje de la cola
+                 synchronized (output) {
+                     output.writeObject(message);
+                     output.flush();
+                     output.reset(); // Limpia referencias persistentes
+                 }
+                 System.out.println("Mensaje enviado: " + message);
+             } catch (IOException | InterruptedException e) {
+                 System.err.println("Error en el hilo de escritura: " + e.getMessage());
+                 break;
+             }
+         }
+     }, "MessageSenderThread").start();
+ }
+
+ public void sendMessage(int conversationId, String content) {
+	    try {
+	        synchronized (output) {
+	            output.writeObject("SEND_MESSAGE " + conversationId + "," + content);
+	            output.flush();
+	            output.reset();
+	            System.out.println("Mensaje enviado: " + content);
+	        }
+	    } catch (IOException e) {
+	        System.err.println("Error al enviar mensaje: " + e.getMessage());
+	    }
+	}
+// public void stopListening() {
+//	    if (!isClosing) {
+//	        isClosing = true;
+//	        System.out.println("Deteniendo el hilo de escucha...");
+//
+//	        listening = false; // Detiene el bucle de escucha
+//	        try {
+//	            if (socket != null && !socket.isClosed()) {
+//	                socket.shutdownInput(); // Detener flujo de entrada
+//	            }
+//	        } catch (IOException e) {
+//	            System.err.println("Error al cerrar el socket: " + e.getMessage());
+//	        }
+//	        System.out.println("Escucha detenida.");
+//	    }
+//	}
+ public void stopListening() {
+	    if (listeningThread != null && listeningThread.isAlive()) {
+	        System.out.println("Deteniendo el hilo de escucha...");
+	        listening = false; // Detiene el bucle de escucha
+	        listeningThread.interrupt(); // Interrumpir el hilo
+	        try {
+	            listeningThread.join(1000); // Espera hasta 1 segundo para que el hilo termine
+	        } catch (InterruptedException e) {
+	            System.err.println("Error al esperar que el hilo termine: " + e.getMessage());
+	            Thread.currentThread().interrupt(); // Restaurar el estado de interrupción
+	        }
+	        listeningThread = null; // Limpia la referencia del hilo
+	        System.out.println("Hilo de escucha detenido correctamente.");
+	    }
+	}
+
+
+
+ public boolean logout() {
+	    try {
+	        if (!isClosing) {
+	            synchronized (output) {
+	                output.writeObject("LOGOUT");
+	                output.flush();
+	            }
+	        }
+
+	        stopListening(); // Detiene la escucha antes de cerrar recursos
+	        closeResources();
+
+	        System.out.println("Cliente cerrado correctamente.");
+	        return true;
+	    } catch (IOException e) {
+	        System.err.println("Error al cerrar el cliente: " + e.getMessage());
+	        return false;
+	    }
+	}
+
+	private void closeResources() {
+	    try {
+	        if (input != null) input.close();
+	        if (output != null) output.close();
+	        if (socket != null && !socket.isClosed()) socket.close();
+	    } catch (IOException e) {
+	        System.err.println("Error al cerrar recursos: " + e.getMessage());
+	    }
+	}
+
+
 
 }

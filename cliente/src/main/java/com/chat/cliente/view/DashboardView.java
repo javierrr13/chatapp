@@ -144,7 +144,14 @@ public class DashboardView extends JFrame {
                     conversation.getName(),
                     UIUtils.COLOR_INTERACTIVE,
                     UIUtils.COLOR_INTERACTIVE_DARKER,
-                    () -> openChat(conversation)
+                    () -> {
+						try {
+							openChat(conversation);
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
                 );
                 conversationButton.setPreferredSize(new Dimension(200, 50));
                 conversationListPanel.add(conversationButton);
@@ -158,19 +165,19 @@ public class DashboardView extends JFrame {
         }
     }
 
-    private void openChat(Conversation conversation) {
+    private void openChat(Conversation conversation) throws IOException {
         chatPanel.removeAll();
 
-        // Recuperar o crear el �rea de texto asociada a la conversaci�n
+        // Recuperar o crear el área de texto asociada a la conversación
         JTextArea chatArea = chatAreas.computeIfAbsent(conversation.getId(), k -> new JTextArea());
         chatArea.setEditable(false);
         chatArea.setLineWrap(true);
         chatArea.setWrapStyleWord(true);
 
-        // Cargar mensajes hist�ricos
+        // Cargar mensajes históricos
         try {
             List<Message> messages = userModel.getMessages(conversation.getId());
-            chatArea.setText(""); // Limpia el �rea antes de cargar mensajes hist�ricos
+            chatArea.setText(""); // Limpia el área antes de cargar mensajes históricos
             for (Message message : messages) {
                 String formattedMessage = String.format(
                     "[%s] Usuario %d: %s",
@@ -185,12 +192,6 @@ public class DashboardView extends JFrame {
             e.printStackTrace();
         }
 
-        // Asegurar que estamos escuchando los mensajes en tiempo real
-        if (!isListening) { // Variable para evitar m�ltiples hilos de escucha
-            userModel.listenForMessages(chatAreas);
-            isListening = true; // Iniciar solo una vez
-        }
-
         JScrollPane scrollPane = new JScrollPane(chatArea);
 
         // Campo para enviar mensajes
@@ -198,31 +199,36 @@ public class DashboardView extends JFrame {
         messageField.addActionListener(e -> {
             String content = messageField.getText();
             if (!content.isEmpty()) {
-                try {
-                    userModel.sendMessage(conversation.getId(), content);
-                    messageField.setText("");
-                } catch (IOException ex) {
-                    toaster.error("Error enviando mensaje.");
-                    ex.printStackTrace();
-                }
+                userModel.sendMessage(conversation.getId(), content);
+                messageField.setText("");
             }
         });
 
-        // Bot�n para volver al main
+        // Botón para volver al main
         JButton backButton = new JButton("Volver al Main");
         backButton.setBackground(UIUtils.COLOR_INTERACTIVE);
         backButton.setForeground(Color.WHITE);
         backButton.setFocusPainted(false);
         backButton.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-        backButton.addActionListener(e -> cardLayout.show(cardPanel, "Dashboard"));
+        backButton.addActionListener(e -> {
+            userModel.stopListening(); // Detener el hilo de escucha
+            cardLayout.show(cardPanel, "Dashboard");
+        });
 
-        // Panel inferior con campo de mensaje y bot�n
+
+        // Panel inferior con campo de mensaje y botón
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.add(messageField, BorderLayout.CENTER);
         bottomPanel.add(backButton, BorderLayout.EAST);
 
         chatPanel.add(scrollPane, BorderLayout.CENTER);
         chatPanel.add(bottomPanel, BorderLayout.SOUTH);
+
+        // Iniciar la escucha solo si no está activa
+        if (!isListening) {
+            userModel.listenForMessages(chatAreas);
+            isListening = true; // Marcar que estamos escuchando
+        }
 
         cardLayout.show(cardPanel, "ChatView");
     }

@@ -190,7 +190,7 @@ public class CommandProcessor {
 
             if (profile != null) {
                 output.writeObject(profile);
-                System.out.println("Perfil enviado: " + profile);
+                System.out.println("("+ profile.getClass().getName()+")"+"Perfil enviado: " + profile);
             } else {
                 System.out.println("El usuario no tiene un perfil creado. Solicitando datos para creaci�n.");
                 output.writeObject("NO_PROFILE_FOUND");
