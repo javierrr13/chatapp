@@ -42,9 +42,9 @@ public class DashboardView extends JFrame {
     private final JLabel createdAtLabel = new JLabel();
     private final JLabel profilePicturePreview = new JLabel();
     private final Map<Integer, JTextArea> chatAreas = new HashMap<>();
-    private boolean isListening = false;
+    private boolean isListening = true;
 
-    public DashboardView(UserModel userModel) {
+    public DashboardView(UserModel userModel) throws IOException {
         super("Dashboard");
         System.out.println("Abriendo dashboard");
         this.userModel = userModel;
@@ -128,7 +128,7 @@ public class DashboardView extends JFrame {
         return dashboardPanel;
     }
 
-    private void loadConversations() {
+    private void loadConversations() throws IOException {
         try {
             List<Conversation> conversations = userModel.getConversations();
             System.out.println("Conversaciones obtenidas: " + conversations);
@@ -145,12 +145,7 @@ public class DashboardView extends JFrame {
                     UIUtils.COLOR_INTERACTIVE,
                     UIUtils.COLOR_INTERACTIVE_DARKER,
                     () -> {
-						try {
-							openChat(conversation);
-						} catch (IOException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
+						openChat(conversation);
 					}
                 );
                 conversationButton.setPreferredSize(new Dimension(200, 50));
@@ -165,7 +160,7 @@ public class DashboardView extends JFrame {
         }
     }
 
-    private void openChat(Conversation conversation) throws IOException {
+    private void openChat(Conversation conversation) {
         chatPanel.removeAll();
 
         // Recuperar o crear el área de texto asociada a la conversación
@@ -192,9 +187,11 @@ public class DashboardView extends JFrame {
             e.printStackTrace();
         }
 
+        // Asegurar que el hilo de escucha esté activo
+        userModel.listenForMessages(chatAreas);
+
         JScrollPane scrollPane = new JScrollPane(chatArea);
 
-        // Campo para enviar mensajes
         JTextField messageField = new JTextField();
         messageField.addActionListener(e -> {
             String content = messageField.getText();
@@ -204,19 +201,9 @@ public class DashboardView extends JFrame {
             }
         });
 
-        // Botón para volver al main
-        JButton backButton = new JButton("Volver al Main");
-        backButton.setBackground(UIUtils.COLOR_INTERACTIVE);
-        backButton.setForeground(Color.WHITE);
-        backButton.setFocusPainted(false);
-        backButton.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-        backButton.addActionListener(e -> {
-            userModel.stopListening(); // Detener el hilo de escucha
-            cardLayout.show(cardPanel, "Dashboard");
-        });
+        JButton backButton = new JButton("Volver");
+        backButton.addActionListener(e -> cardLayout.show(cardPanel, "Dashboard"));
 
-
-        // Panel inferior con campo de mensaje y botón
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.add(messageField, BorderLayout.CENTER);
         bottomPanel.add(backButton, BorderLayout.EAST);
@@ -224,14 +211,9 @@ public class DashboardView extends JFrame {
         chatPanel.add(scrollPane, BorderLayout.CENTER);
         chatPanel.add(bottomPanel, BorderLayout.SOUTH);
 
-        // Iniciar la escucha solo si no está activa
-        if (!isListening) {
-            userModel.listenForMessages(chatAreas);
-            isListening = true; // Marcar que estamos escuchando
-        }
-
         cardLayout.show(cardPanel, "ChatView");
     }
+
 
 
     private JPanel createUserProfilePanel() {

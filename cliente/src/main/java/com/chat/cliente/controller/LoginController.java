@@ -1,4 +1,6 @@
 package com.chat.cliente.controller;
+import java.io.IOException;
+
 import javax.swing.JFrame;
 
 import com.chat.cliente.model.UserModel;
@@ -33,7 +35,7 @@ public class LoginController {
         currentView.setVisible(true);
     }
 
-    public void showDashboardView(UserModel userModel) {
+    public void showDashboardView(UserModel userModel) throws IOException {
         if (currentView != null) {
             System.out.println("Cerrando ventana actual: " + currentView.getTitle());
             currentView.dispose(); // Cerrar la ventana actual

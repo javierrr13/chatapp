@@ -65,12 +65,11 @@ public class ServerState {
         } catch (SQLException e) {
             System.err.println("Error al obtener clientes en la conversaci�n: " + e.getMessage());
         }
-        System.out.println(clients);
         return clients;
     }
     public static void broadcastToConversation(int conversationId, Message message, Socket senderSocket) {
         Set<Socket> conversationClients = getClientsInConversation(conversationId);
-
+        int count = 0;
         for (Socket client : conversationClients) {
             // Evitar enviar el mensaje de vuelta al emisor
             if (client.equals(senderSocket)) {
@@ -87,12 +86,14 @@ public class ServerState {
                     clientOutput.writeObject(message);
                     clientOutput.reset();
                     clientOutput.flush();
+                    count ++ ;
                 }
             } catch (IOException e) {
                 System.err.println("Error al enviar mensaje a cliente: " + e.getMessage());
                 removeClient(client); // Remueve cliente desconectado
             }
         }
+        System.out.println("Broacasted to " + count+ " clients " );
     }
 
 
