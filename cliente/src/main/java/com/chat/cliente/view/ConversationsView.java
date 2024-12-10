@@ -123,17 +123,17 @@ public class ConversationsView extends JFrame {
         System.out.println(conversationName+ " "+ userIds);
         
 
-//        try {
-//            boolean success = userModel.createConversation(conversationName, userIds);
-//            if (success) {
-//            	System.out.println("Conversación creada exitosamente.");
-//                this.dispose();
-//            } else {
-//            	System.out.println("Error al crear la conversación. Intente nuevamente.");
-//            }
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            System.out.println("Ocurrió un error inesperado.");
-//        }
+        try {
+            boolean success = userModel.createConversation(conversationName, userIds);
+            if (success) {
+                System.out.println("Conversación creada exitosamente.");
+                this.dispose();
+            } else {
+                System.out.println("Error al crear la conversación. Intente nuevamente.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Ocurrió un error inesperado.");
+        }
     }
 }

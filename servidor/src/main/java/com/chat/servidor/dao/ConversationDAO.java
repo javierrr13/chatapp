@@ -11,47 +11,55 @@ import java.util.List;
 public class ConversationDAO {
 
     /**
-     * Crear una conversaci�n y a�adir al creador como miembro autom�ticamente.
+     * Crear una conversación y añadir al creador como miembro automáticamente.
      */
-    public Conversation createConversation(String name, int statusId, int creatorId) throws SQLException {
-        String createConversationSql = "  INSERT INTO conversation_users (conversation_id, user_id)\r\n"
-        		+ "            VALUES (?, ?);";
+	public Conversation createConversation(String name, int statusId, int creatorId, List<Integer> userIds) throws SQLException {
+	    String createConversationSql = "INSERT INTO conversations (name, status_id, creator_id) VALUES (?, ?, ?)";
+	    String addUserSql = "INSERT INTO conversation_users (conversation_id, user_id) VALUES (?, ?)";
 
-        String addUserSql ="  INSERT INTO conversation_users (conversation_id, user_id)\r\n"
-        		+ "            VALUES (?, ?);";
+	    try (Connection conn = DatabaseConfig.getConnection();
+	         PreparedStatement createStmt = conn.prepareStatement(createConversationSql, Statement.RETURN_GENERATED_KEYS);
+	         PreparedStatement addUserStmt = conn.prepareStatement(addUserSql)) {
 
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement createStmt = conn.prepareStatement(createConversationSql, Statement.RETURN_GENERATED_KEYS);
-             PreparedStatement addUserStmt = conn.prepareStatement(addUserSql)) {
+	        // Crear la conversación
+	        createStmt.setString(1, name);
+	        createStmt.setInt(2, statusId);
+	        createStmt.setInt(3, creatorId);
+	        createStmt.executeUpdate();
 
-            // Crear la conversaci�n
-            createStmt.setString(1, name);
-            createStmt.setInt(2, statusId);
-            createStmt.setInt(3, creatorId);
-            createStmt.executeUpdate();
+	        // Obtener el ID de la conversación creada
+	        try (ResultSet generatedKeys = createStmt.getGeneratedKeys()) {
+	            if (generatedKeys.next()) {
+	                int conversationId = generatedKeys.getInt(1);
+	                LocalDateTime createdAt = LocalDateTime.now();
 
-            // Obtener el ID de la conversaci�n creada
-            try (ResultSet generatedKeys = createStmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    int conversationId = generatedKeys.getInt(1);
-                    LocalDateTime createdAt = LocalDateTime.now(); // Suponiendo que `created_at` tiene valor autom�tico
+	                // Añadir al creador como miembro (solo una vez)
+	                addUserStmt.setInt(1, conversationId);
+	                addUserStmt.setInt(2, creatorId);
+	                addUserStmt.executeUpdate();
 
-                    // A�adir al creador como miembro de la conversaci�n
-                    addUserStmt.setInt(1, conversationId);
-                    addUserStmt.setInt(2, creatorId);
-                    addUserStmt.executeUpdate();
+	                // Eliminar el creador de la lista si existe para evitar duplicado
+	                userIds.removeIf(id -> id == creatorId);
 
-                    // Crear y devolver una instancia de Conversation
-                    return new Conversation(conversationId, name, statusId, createdAt);
-                } else {
-                    throw new SQLException("No se pudo obtener el ID de la conversaci�n creada.");
-                }
-            }
-        }
-    }
+	                // Añadir otros usuarios
+	                for (int userId : userIds) {
+	                    addUserStmt.setInt(1, conversationId);
+	                    addUserStmt.setInt(2, userId);
+	                    addUserStmt.addBatch();
+	                }
+	                addUserStmt.executeBatch();
+
+	                // Devolver la conversación creada
+	                return new Conversation(conversationId, name, statusId, createdAt);
+	            } else {
+	                throw new SQLException("No se pudo obtener el ID de la conversación creada.");
+	            }
+	        }
+	    }
+	}
 
     /**
-     * Agregar usuarios a una conversaci�n.
+     * Agregar usuarios a una conversación.
      */
     public boolean addUsersToConversation(int conversationId, List<Integer> userIds) throws SQLException {
         String sql = "INSERT INTO conversation_users (conversation_id, user_id) VALUES (?, ?)";
@@ -73,10 +81,10 @@ public class ConversationDAO {
      * Obtener conversaciones en las que participa un usuario.
      */
     public List<Conversation> getConversationsByUserId(int userId) throws SQLException {
-        String sql = "  SELECT c.id, c.name, c.status_id, c.created_at\r\n"
-        		+ "            FROM conversations c\r\n"
-        		+ "            JOIN conversation_users cu ON c.id = cu.conversation_id\r\n"
-        		+ "            WHERE cu.user_id = ?;";
+        String sql = "SELECT c.id, c.name, c.status_id, c.created_at " +
+                     "FROM conversations c " +
+                     "JOIN conversation_users cu ON c.id = cu.conversation_id " +
+                     "WHERE cu.user_id = ?";
 
         List<Conversation> conversations = new ArrayList<>();
         try (Connection conn = DatabaseConfig.getConnection();
@@ -99,11 +107,11 @@ public class ConversationDAO {
         return conversations;
     }
 
+    /**
+     * Validar si un usuario puede enviar un mensaje en una conversación.
+     */
     public boolean canSendMessage(int userId, int conversationId) throws SQLException {
-        String sql ="    SELECT 1\r\n"
-        		+ "            FROM conversation_users\r\n"
-        		+ "            WHERE user_id = ? AND conversation_id = ?\r\n"
-        		+ "            LIMIT 1;";
+        String sql = "SELECT 1 FROM conversation_users WHERE user_id = ? AND conversation_id = ? LIMIT 1";
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -111,22 +119,16 @@ public class ConversationDAO {
             stmt.setInt(2, conversationId);
 
             try (ResultSet rs = stmt.executeQuery()) {
-                return rs.next(); // Devuelve true si el usuario pertenece a la conversaci�n
+                return rs.next();
             }
         }
     }
+
     /**
-     * Obtener los IDs de los usuarios que est�n en una conversaci�n espec�fica.
-     *
-     * @param conversationId El ID de la conversaci�n.
-     * @return Una lista de IDs de usuarios que participan en la conversaci�n.
-     * @throws SQLException Si ocurre un error de acceso a la base de datos.
+     * Obtener IDs de los usuarios en una conversación específica.
      */
     public List<Integer> getUserIdsInConversation(int conversationId) throws SQLException {
-        String sql = "SELECT user_id " +
-                     "FROM conversation_users " +
-                     "WHERE conversation_id = ?";
-
+        String sql = "SELECT user_id FROM conversation_users WHERE conversation_id = ?";
         List<Integer> userIds = new ArrayList<>();
 
         try (Connection conn = DatabaseConfig.getConnection();
@@ -143,5 +145,4 @@ public class ConversationDAO {
 
         return userIds;
     }
-    
 }

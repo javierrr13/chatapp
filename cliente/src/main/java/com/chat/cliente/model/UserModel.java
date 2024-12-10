@@ -259,6 +259,23 @@ public class UserModel {
 	    }
 	}
 
+ public boolean createConversation(String conversationName, List<Integer> userIds) {
+	    try {
+	        // Preparar el mensaje que se enviará al servidor
+	    	System.out.println("cliente -> CREATE_CONVERSATION");
+	        output.writeObject("CREATE_CONVERSATION");
+	        output.writeObject(conversationName);
+	        output.writeObject(userIds);
+	        output.flush();
+
+	        // Leer la respuesta del servidor
+	        String response = (String) input.readObject();
+	        return "CONVERSATION_CREATED_SUCCESSFULLY".equals(response);
+	    } catch (IOException | ClassNotFoundException e) {
+	        System.err.println("Error al crear la conversación: " + e.getMessage());
+	        return false;
+	    }
+	}
 
  public boolean logout() {
 	    try {

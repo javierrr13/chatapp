@@ -33,7 +33,7 @@ public class CommandProcessor {
 
         switch (action) {
             case "CREATE_CONVERSATION":
-                handleCreateConversation(parts, user, output);
+                handleCreateConversation(input, user, output);
                 break;
 
             case "SEND_MESSAGE":
@@ -92,33 +92,29 @@ public class CommandProcessor {
     }
 
 
-
-    private void handleCreateConversation(String[] parts, User user, ObjectOutputStream output) {
+    private void handleCreateConversation(ObjectInputStream input, User user, ObjectOutputStream output) {
         try {
-            if (parts.length > 1) {
-                String[] createParams = parts[1].split(",", 2);
-                if (createParams.length == 2) {
-                    String conversationName = createParams[0].trim();
-                    int statusId = Integer.parseInt(createParams[1].trim());
+            String conversationName = (String) input.readObject();
+            List<Integer> userIds = (List<Integer>) input.readObject();
 
-                    // Crear la conversaci�n y agregar al usuario como miembro
-                    Conversation conversation = conversationService.createConversation(conversationName, statusId, user.getId());
-                    output.writeObject("CONVERSATION_CREATED: " + conversation);
-                } else {
-                    output.writeObject("Error: Faltan par�metros para CREATE_CONVERSATION. Formato esperado: nombre,statusId.");
-                }
+            // Llamar al servicio para crear la conversación
+            Conversation conversation = conversationService.createConversation(conversationName, 1, user.getId(), userIds);
+
+            if (conversation != null) {
+                output.writeObject("CONVERSATION_CREATED_SUCCESSFULLY");
             } else {
-                output.writeObject("Error: Faltan par�metros para CREATE_CONVERSATION.");
+                output.writeObject("ERROR: No se pudo crear la conversación.");
             }
         } catch (Exception e) {
             e.printStackTrace();
             try {
-                output.writeObject("ERROR: No se pudo crear la conversaci�n.");
-            } catch (Exception ex) {
+                output.writeObject("ERROR: Error al procesar la creación de la conversación.");
+            } catch (IOException ex) {
                 ex.printStackTrace();
             }
         }
     }
+
 
     private void handleSendMessage(String[] parts, User user, ObjectOutputStream output) {
     	Socket senderSocket = ServerState.getSocketByUser(user);
