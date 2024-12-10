@@ -149,52 +149,54 @@ public class UserModel {
             }
         }
     }
-    public void listenForMessages(Map<Integer, JTextArea> chatAreas) {
+    public synchronized void listenForMessages(Map<Integer, JTextArea> chatAreas) {
         if (listeningThread == null || !listeningThread.isAlive()) {
-            listening = true; // Reiniciar la bandera
-            listeningThread = new Thread(() -> {
-                System.out.println("Hilo de escucha iniciado.");
-                try {
-                    while (listening) {
-                        Object response = input.readObject(); // Bloquea hasta que recibe un objeto
+            // Código del hilo aquí
+        	if (listeningThread == null || !listeningThread.isAlive()) {
+                listening = true;
+                listeningThread = new Thread(() -> {
+                    System.out.println("Hilo de escucha iniciado.");
+                    try {
+                        while (listening && !socket.isClosed()) {
+                            try {
+                                Object response = input.readObject(); // Bloqueante
 
-                        if (response instanceof Message message) {
-                            int conversationId = message.getConversationId();
-                            String formattedMessage = String.format(
-                                "[%s] Usuario %d: %s",
-                                message.getSentAt().toLocalTime(),
-                                message.getUserId(),
-                                message.getContent()
-                            );
-
-                            SwingUtilities.invokeLater(() -> {
-                                JTextArea chatArea = chatAreas.get(conversationId);
-                                if (chatArea != null) {
-                                    chatArea.append(formattedMessage + "\n");
-                                } else {
-                                    System.err.println("No hay área de chat para la conversación: " + conversationId);
+                                if (response instanceof Message message) {
+                                    SwingUtilities.invokeLater(() -> {
+                                        JTextArea chatArea = chatAreas.get(message.getConversationId());
+                                        if (chatArea != null) {
+                                            chatArea.append(String.format("[%s] Usuario %d: %s\n",
+                                                message.getSentAt().toLocalTime(),
+                                                message.getUserId(),
+                                                message.getContent()));
+                                        }
+                                    });
                                 }
-                            });
-                        } else {
-                            System.out.println("Mensaje desconocido del servidor: " + response);
+                            } catch (EOFException e) {
+                                System.err.println("Fin del flujo de entrada. Deteniendo escucha...");
+                                break; // Salir del bucle si el flujo termina
+                            } catch (SocketException e) {
+                                System.err.println("El servidor cerró la conexión: " + e.getMessage());
+                                break;
+                            } catch (IOException | ClassNotFoundException e) {
+                                System.err.println("Error en el hilo de escucha: " + e.getMessage());
+                                break;
+                            }
                         }
+                    } finally {
+                        System.out.println("Finalizando hilo de escucha...");
+                        listening = false;
                     }
-                } catch (IOException | ClassNotFoundException e) {
-                    if (listening) {
-                        System.err.println("Error en hilo de escucha: " + e.getMessage());
-                    } else {
-                        System.out.println("Hilo de escucha detenido.");
-                    }
-                } finally {
-                    listening = false;
-                    System.out.println("Hilo de escucha finalizado.");
-                }
-            });
-            listeningThread.start();
-        } else {
-            System.out.println("El hilo de escucha ya está activo.");
+                }, "ListenerThread");
+
+                listeningThread.start();
+            } else {
+                System.out.println("El hilo de escucha ya está activo.");
+            }
         }
     }
+
+
 
 
  public void startMessageSender() {
@@ -235,19 +237,27 @@ public class UserModel {
  public void stopListening() {
 	    if (listeningThread != null && listeningThread.isAlive()) {
 	        System.out.println("Deteniendo el hilo de escucha...");
-	        listening = false; // Detiene el bucle de escucha
-	        listeningThread.interrupt(); // Interrumpir el hilo
+	        listening = false; // Detiene la bandera
+
+	        try {
+	            if (socket != null && !socket.isClosed()) {
+	                socket.close(); // Cierra el socket para desbloquear readObject
+	            }
+	        } catch (IOException e) {
+	            System.err.println("Error al cerrar el socket: " + e.getMessage());
+	        }
+
 	        try {
 	            listeningThread.join(1000); // Espera hasta 1 segundo para que el hilo termine
 	        } catch (InterruptedException e) {
 	            System.err.println("Error al esperar que el hilo termine: " + e.getMessage());
 	            Thread.currentThread().interrupt(); // Restaurar el estado de interrupción
 	        }
+
 	        listeningThread = null; // Limpia la referencia del hilo
 	        System.out.println("Hilo de escucha detenido correctamente.");
 	    }
 	}
-
 
 
  public boolean logout() {

@@ -9,12 +9,14 @@ public class UserController {
     private static UserModel userModel;
 
     public static void initialize(String serverHost, int serverPort) {
+    if(userModel == null) {
         try {
             userModel = new UserModel(serverHost, serverPort);
         } catch (IOException e) {
             System.err.println("No se pudo conectar al servidor: " + e.getMessage());
             System.exit(1);
         }
+    }
     }
 
     public static boolean handleLogin(String username, String password) {

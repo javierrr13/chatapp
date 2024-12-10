@@ -6,7 +6,7 @@ import com.chat.cliente.toaster.Toaster;
 import com.chat.cliente.utils.StyledButton;
 import com.chat.cliente.utils.TextFieldUsername;
 import com.chat.cliente.utils.UIUtils;
-import com.chat.shared.Conversation; // Modelo compartido para las conversaciones
+import com.chat.shared.Conversation; 
 import com.chat.shared.Message;
 import com.chat.shared.UserProfileModel;
 
@@ -14,7 +14,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
-import java.time.LocalDateTime;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -51,6 +50,7 @@ public class DashboardView extends JFrame {
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         // Configurar pantalla completa
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setUndecorated(true);
         setSize(1200, 800); // Tama�o fijo, ancho x alto
         setLocationRelativeTo(null); 
@@ -88,11 +88,10 @@ public class DashboardView extends JFrame {
         logo.setBounds(50, 30, 150, 80);
         sidebar.add(logo);
 
-        String[] buttonLabels = {"Home", "Profile", "Settings", "Logout"};
+        String[] buttonLabels = { "Profile", "Conversations", "Logout"};
         Runnable[] actions = {
-            () -> toaster.info("Home clicked!"),
             this::showUserProfile,
-            () -> toaster.info("Settings clicked!"),
+            this::openConversationsView, 
             this::logout
         };
 
@@ -126,6 +125,17 @@ public class DashboardView extends JFrame {
         dashboardPanel.add(contentArea);
 
         return dashboardPanel;
+    }
+    private void openConversationsView() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                ConversationsView conversationsView = new ConversationsView(userModel);
+                conversationsView.setVisible(true);
+            } catch (Exception e) {
+                e.printStackTrace();
+                toaster.error("Error al abrir la vista de conversaciones.");
+            }
+        });
     }
 
     private void loadConversations() throws IOException {
