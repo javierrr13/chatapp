@@ -108,8 +108,7 @@ public class ConversationsView extends JFrame {
         String conversationName = conversationNameField.getText().trim();
         String usersInput = usersArea.getText().trim();
 
- 
-        // Parsear IDs de usuarios
+
         String[] userIdsArray = usersInput.split(",");
         List<Integer> userIds = new ArrayList<>();
         try {

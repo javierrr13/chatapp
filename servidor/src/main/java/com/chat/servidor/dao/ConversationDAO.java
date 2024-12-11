@@ -10,9 +10,7 @@ import java.util.List;
 
 public class ConversationDAO {
 
-    /**
-     * Crear una conversación y añadir al creador como miembro automáticamente.
-     */
+
 	public Conversation createConversation(String name, int statusId, int creatorId, List<Integer> userIds) throws SQLException {
 	    String createConversationSql = "INSERT INTO conversations (name, status_id, creator_id) VALUES (?, ?, ?)";
 	    String addUserSql = "INSERT INTO conversation_users (conversation_id, user_id) VALUES (?, ?)";
@@ -21,24 +19,21 @@ public class ConversationDAO {
 	         PreparedStatement createStmt = conn.prepareStatement(createConversationSql, Statement.RETURN_GENERATED_KEYS);
 	         PreparedStatement addUserStmt = conn.prepareStatement(addUserSql)) {
 
-	        // Crear la conversación
 	        createStmt.setString(1, name);
 	        createStmt.setInt(2, statusId);
 	        createStmt.setInt(3, creatorId);
 	        createStmt.executeUpdate();
 
-	        // Obtener el ID de la conversación creada
+
 	        try (ResultSet generatedKeys = createStmt.getGeneratedKeys()) {
 	            if (generatedKeys.next()) {
 	                int conversationId = generatedKeys.getInt(1);
 	                LocalDateTime createdAt = LocalDateTime.now();
 
-	                // Añadir al creador como miembro (solo una vez)
 	                addUserStmt.setInt(1, conversationId);
 	                addUserStmt.setInt(2, creatorId);
 	                addUserStmt.executeUpdate();
 
-	                // Eliminar el creador de la lista si existe para evitar duplicado
 	                userIds.removeIf(id -> id == creatorId);
 
 	                // Añadir otros usuarios
@@ -49,7 +44,6 @@ public class ConversationDAO {
 	                }
 	                addUserStmt.executeBatch();
 
-	                // Devolver la conversación creada
 	                return new Conversation(conversationId, name, statusId, createdAt);
 	            } else {
 	                throw new SQLException("No se pudo obtener el ID de la conversación creada.");
@@ -57,7 +51,6 @@ public class ConversationDAO {
 	        }
 	    }
 	}
-
     /**
      * Agregar usuarios a una conversación.
      */
@@ -77,9 +70,7 @@ public class ConversationDAO {
         }
     }
 
-    /**
-     * Obtener conversaciones en las que participa un usuario.
-     */
+
     public List<Conversation> getConversationsByUserId(int userId) throws SQLException {
         String sql = "SELECT c.id, c.name, c.status_id, c.created_at " +
                      "FROM conversations c " +
@@ -107,9 +98,7 @@ public class ConversationDAO {
         return conversations;
     }
 
-    /**
-     * Validar si un usuario puede enviar un mensaje en una conversación.
-     */
+
     public boolean canSendMessage(int userId, int conversationId) throws SQLException {
         String sql = "SELECT 1 FROM conversation_users WHERE user_id = ? AND conversation_id = ? LIMIT 1";
         try (Connection conn = DatabaseConfig.getConnection();
@@ -124,9 +113,7 @@ public class ConversationDAO {
         }
     }
 
-    /**
-     * Obtener IDs de los usuarios en una conversación específica.
-     */
+
     public List<Integer> getUserIdsInConversation(int conversationId) throws SQLException {
         String sql = "SELECT user_id FROM conversation_users WHERE conversation_id = ?";
         List<Integer> userIds = new ArrayList<>();
