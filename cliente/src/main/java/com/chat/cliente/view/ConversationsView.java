@@ -1,10 +1,7 @@
-
 package com.chat.cliente.view;
-
 
 import com.chat.cliente.model.UserModel;
 import com.chat.cliente.toaster.Toaster;
-import com.chat.cliente.utils.StyledButton;
 import com.chat.cliente.utils.TextFieldUsername;
 import com.chat.cliente.utils.UIUtils;
 
@@ -18,14 +15,13 @@ public class ConversationsView extends JFrame {
 
     private final UserModel userModel;
 
-
     private final TextFieldUsername conversationNameField = new TextFieldUsername();
     private final JTextArea usersArea = new JTextArea();
-
+    private Toaster toaster;
+    
     public ConversationsView(UserModel userModel) {
         super("Crear Conversación");
         this.userModel = userModel;
-
         // Configuración del frame
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setSize(600, 400);
@@ -83,18 +79,23 @@ public class ConversationsView extends JFrame {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         buttonPanel.setBackground(UIUtils.COLOR_BACKGROUND);
 
-        JLabel createButton = new StyledButton(
-                "Crear Conversación",
-                UIUtils.COLOR_INTERACTIVE,
-                UIUtils.COLOR_INTERACTIVE_DARKER,
-                this::createConversation
-        );
+        // Botón Crear Conversación
+        JButton createButton = new JButton("Crear Conversación");
+        createButton.setBackground(UIUtils.COLOR_INTERACTIVE);
+        createButton.setForeground(Color.WHITE);
+        createButton.setFocusPainted(false);
         createButton.setPreferredSize(new Dimension(200, 40));
+
+        // Acción del botón
+        createButton.addActionListener(e -> createConversation());
+
         buttonPanel.add(createButton);
 
+        // Botón Cancelar
         JButton cancelButton = new JButton("Cancelar");
         cancelButton.setBackground(UIUtils.COLOR_OUTLINE);
         cancelButton.setForeground(Color.WHITE);
+        cancelButton.setFocusPainted(false);
         cancelButton.addActionListener(e -> this.dispose());
         buttonPanel.add(cancelButton);
 
@@ -103,12 +104,14 @@ public class ConversationsView extends JFrame {
         add(mainPanel, BorderLayout.CENTER);
     }
 
+    /**
+     * Método para crear una conversación.
+     */
     private void createConversation() {
-    	
         String conversationName = conversationNameField.getText().trim();
         String usersInput = usersArea.getText().trim();
 
-
+        // Parsear IDs de usuarios
         String[] userIdsArray = usersInput.split(",");
         List<Integer> userIds = new ArrayList<>();
         try {
@@ -116,23 +119,24 @@ public class ConversationsView extends JFrame {
                 userIds.add(Integer.parseInt(id.trim()));
             }
         } catch (NumberFormatException e) {
-            System.out.println("Los IDs de usuario deben ser números válidos.");
+            JOptionPane.showMessageDialog(this, "Los IDs de usuario deben ser números válidos.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        System.out.println(conversationName+ " "+ userIds);
-        
 
+        System.out.println(conversationName + " " + userIds);
+
+        // Crear la conversación
         try {
             boolean success = userModel.createConversation(conversationName, userIds);
             if (success) {
-                System.out.println("Conversación creada exitosamente.");
+                JOptionPane.showMessageDialog(this, "Conversación creada exitosamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
                 this.dispose();
             } else {
-                System.out.println("Error al crear la conversación. Intente nuevamente.");
+                JOptionPane.showMessageDialog(this, "Error en IDs introducidos. Intente nuevamente.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("Ocurrió un error inesperado.");
+            JOptionPane.showMessageDialog(this, "Ocurrió un error inesperado.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

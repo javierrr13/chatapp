@@ -20,6 +20,9 @@ public class UserProfileModel implements Serializable {
         this.profilePicture = profilePicture;
         this.createdAt = createdAt;
     }
+    public UserProfileModel() {
+        // Constructor vacío necesario para deserialización
+    }
 
     // Getters y Setters
     public int getId() {

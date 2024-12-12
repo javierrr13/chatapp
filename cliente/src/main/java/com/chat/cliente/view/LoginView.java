@@ -1,13 +1,11 @@
 package com.chat.cliente.view;
 
-
 import javax.swing.*;
 
 import com.chat.cliente.controller.LoginController;
 import com.chat.cliente.model.UserModel;
 import com.chat.cliente.toaster.Toaster;
 import com.chat.cliente.utils.HyperlinkText;
-import com.chat.cliente.utils.StyledButton;
 import com.chat.cliente.utils.TextFieldPassword;
 import com.chat.cliente.utils.TextFieldUsername;
 import com.chat.cliente.utils.UIUtils;
@@ -17,9 +15,8 @@ import java.io.IOException;
 
 public class LoginView extends JFrame {
 
- 
-	private static final long serialVersionUID = 1L;
-	private final Toaster toaster;
+    private static final long serialVersionUID = 1L;
+    private final Toaster toaster;
     private final LoginController controller;
 
     private final JPanel cardPanel; // Panel principal con CardLayout
@@ -88,12 +85,16 @@ public class LoginView extends JFrame {
         loginPanel.add(loginPasswordField);
 
         // Login button
-        JLabel loginButton = new StyledButton("Login", UIUtils.COLOR_INTERACTIVE, UIUtils.COLOR_INTERACTIVE_DARKER, this::loginEventHandler);
+        JButton loginButton = new JButton("Login");
         loginButton.setBounds(350, 260, 400, 50);
+        loginButton.setBackground(UIUtils.COLOR_INTERACTIVE);
+        loginButton.setForeground(Color.WHITE);
+        loginButton.setFocusPainted(false);
+        loginButton.addActionListener(e -> loginEventHandler());
         loginPanel.add(loginButton);
 
         // Switch to register
-        JLabel switchToRegister = new HyperlinkText("Don't have an account? Register", 350, 330, this::showRegisterPanel);
+        JLabel switchToRegister = new HyperlinkText("Registrarse", 350, 330, this::showRegisterPanel);
         loginPanel.add(switchToRegister);
 
         return loginPanel;
@@ -129,8 +130,12 @@ public class LoginView extends JFrame {
         registerPanel.add(registerPasswordField);
 
         // Register button
-        JLabel registerButton = new StyledButton("Register", UIUtils.COLOR_INTERACTIVE, UIUtils.COLOR_INTERACTIVE_DARKER, this::registerEventHandler);
+        JButton registerButton = new JButton("Register");
         registerButton.setBounds(350, 340, 400, 50);
+        registerButton.setBackground(UIUtils.COLOR_INTERACTIVE);
+        registerButton.setForeground(Color.WHITE);
+        registerButton.setFocusPainted(false);
+        registerButton.addActionListener(e -> registerEventHandler());
         registerPanel.add(registerButton);
 
         // Switch to login
@@ -155,10 +160,9 @@ public class LoginView extends JFrame {
 
             if (success) {
                 toaster.success("Login successful.");
-                controller.showDashboardView(userModel); // Mostrar el Dashboard
-                this.dispose(); // Cerrar esta ventana
+                controller.showDashboardView(userModel);
+                this.dispose();
             } else {
-            	System.out.println("LOGIN fallido");
                 toaster.warn("Invalid credentials.");
             }
         } catch (IOException e) {
@@ -183,7 +187,7 @@ public class LoginView extends JFrame {
 
             if (success) {
                 toaster.success("Registration successful. Please login.");
-                showLoginPanel(); // Cambiar al panel de login
+                showLoginPanel();
             } else {
                 toaster.warn("Registration failed.");
             }
@@ -194,10 +198,10 @@ public class LoginView extends JFrame {
     }
 
     private void showLoginPanel() {
-        cardLayout.show(cardPanel, "Login"); // Cambiar al panel de login
+        cardLayout.show(cardPanel, "Login");
     }
 
     private void showRegisterPanel() {
-        cardLayout.show(cardPanel, "Register"); // Cambiar al panel de registro
+        cardLayout.show(cardPanel, "Register");
     }
 }
