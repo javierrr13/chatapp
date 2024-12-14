@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 import com.chat.cliente.controller.LoginController;
+import com.chat.cliente.controller.ThreadController;
 import com.chat.cliente.model.UserModel;
 import com.chat.cliente.toaster.Toaster;
 import com.chat.cliente.utils.UIUtils;
@@ -43,6 +44,8 @@ public class DashboardView extends JFrame {
         toaster = new Toaster(cardPanel);
 
         loadConversations();
+        ThreadController th = new ThreadController();
+        th.printActiveThreads();
     }
 
     private JPanel createDashboardPanel() {

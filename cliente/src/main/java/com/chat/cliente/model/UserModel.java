@@ -15,6 +15,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 
 public class UserModel {
 
@@ -51,68 +52,6 @@ public class UserModel {
             return false;
         }
     }
-    public synchronized void listenForMessages(Map<Integer, JTextArea> chatAreas) {
-        if (listeningThread == null || !listeningThread.isAlive()) {
-            listening = true;
-            listeningThread = new Thread(() -> {
-                System.out.println("Hilo de escucha iniciado: " + Thread.currentThread().getName());
-                try {
-                    while (listening) {
-                        try {
-                            // Verificar si el hilo fue interrumpido antes de bloquear
-                            if (Thread.currentThread().isInterrupted()) {
-                                throw new InterruptedException();
-                            }
-
-                            // Leer un mensaje del servidor
-                            Object response = input.readObject(); // Operación bloqueante
-
-                            if (response instanceof Message message) {
-                                SwingUtilities.invokeLater(() -> {
-                                    JTextArea chatArea = chatAreas.get(message.getConversationId());
-                                    if (chatArea != null) {
-                                        chatArea.append(String.format("[%s] Usuario %d: %s\n",
-                                            message.getSentAt().toLocalTime(),
-                                            message.getUserId(),
-                                            message.getContent()));
-                                    }
-                                });
-                            }
-                        } catch (InterruptedException e) {
-                            System.out.println("Hilo de escucha interrumpido: " + Thread.currentThread().getName());
-                            break; // Salir del bucle si el hilo fue interrumpido
-                        } catch (IOException | ClassNotFoundException e) {
-                            if (!listening) {
-                                System.out.println("Hilo de escucha detenido manualmente.");
-                            } else {
-                                System.err.println("Error en el hilo de escucha: " + e.getMessage());
-                            }
-                            break; // Salir del bucle si hay un error
-                        }
-                    }
-                } finally {
-                    System.out.println("Finalizando hilo de escucha: " + Thread.currentThread().getName());
-                }
-            }, "ListenerThread");
-
-            listeningThread.start();
-        } else {
-            System.out.println("El hilo de escucha ya está activo.");
-        }
-    }
-
-    public synchronized void stopListening() {
-        if (listeningThread != null && listeningThread.isAlive()) {
-            System.out.println("Deteniendo el hilo de escucha: " + listeningThread.getName());
-            
-            listening = false; // Cambia la bandera de control
-            listeningThread.stop();// Interrumpir el hilo
-            System.out.println("Hilo de escucha marcado para detenerse.");
-        } else {
-            System.out.println("No hay hilo de escucha activo para detener.");
-        }
-    }
-
 
     public UserProfileModel getUserProfile() throws IOException, ClassNotFoundException {
         if (socket == null || socket.isClosed()) {
@@ -209,7 +148,6 @@ public class UserModel {
             }
         }
     }
-
  public void sendMessage(int conversationId, String content) {
 	    try {
 	        synchronized (output) {

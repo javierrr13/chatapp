@@ -130,7 +130,7 @@ public class LoginView extends JFrame {
         registerPanel.add(registerPasswordField);
 
         // Register button
-        JButton registerButton = new JButton("Register");
+        JButton registerButton = new JButton("Registro");
         registerButton.setBounds(350, 340, 400, 50);
         registerButton.setBackground(UIUtils.COLOR_INTERACTIVE);
         registerButton.setForeground(Color.WHITE);
@@ -139,7 +139,7 @@ public class LoginView extends JFrame {
         registerPanel.add(registerButton);
 
         // Switch to login
-        JLabel switchToLogin = new HyperlinkText("Already have an account? Login", 350, 410, this::showLoginPanel);
+        JLabel switchToLogin = new HyperlinkText("Ya tienes cuenta, Inice sesion", 350, 410, this::showLoginPanel);
         registerPanel.add(switchToLogin);
 
         return registerPanel;
